@@ -44,7 +44,17 @@ original = 2026-07-06
 status = "green"
 
 [[milestone]]
+name = "Code freeze"
+week = 2026-06-29
+requires = ["Auth", "Payments"]
+
+[[milestone]]
 name = "MVP go-live"
 week = 2026-07-06
 requires = ["Auth", "Payments", "Dashboard"]
+
+[[milestone]]
+name = "Beta launch"
+week = 2026-07-13
+requires = ["Search", "Notifications"]
 `
