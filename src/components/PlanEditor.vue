@@ -98,7 +98,6 @@ function syncScroll() {
   line-height: 1.6;
   tab-size: 2;
   white-space: pre;
-  overflow: auto;
 }
 .backdrop {
   z-index: 0;
@@ -120,6 +119,11 @@ function syncScroll() {
 }
 .input {
   z-index: 1;
+  /* A textarea has an intrinsic block size (its `rows`), so inset:0 alone won't
+     stretch it the way it does the plain-div backdrop — pin both axes to fill. */
+  width: 100%;
+  height: 100%;
+  overflow: auto;
   resize: none;
   outline: none;
   background: transparent;
