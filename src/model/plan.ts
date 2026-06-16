@@ -8,8 +8,8 @@ import type { RawPlan, RawFeature, Plan, FeatureRow, Marker, MilestoneLine } fro
  * Re-estimate (ADR-0001). The full slip history (`◯` + every `△`) is preserved.
  */
 export function buildPlan(raw: RawPlan, today: Date | string = new Date()): Plan {
-  const rows = raw.features.map(buildRow)
   const nowWeek = mondayOf(today)
+  const rows = raw.features.map((f) => buildRow(f, nowWeek))
 
   const milestones = raw.milestones.map((m): MilestoneLine => {
     const week = mondayOf(m.week)
@@ -43,7 +43,7 @@ export function buildPlan(raw: RawPlan, today: Date | string = new Date()): Plan
   return { title: raw.title, weeks, rows, milestones, nowWeek, nowInRange }
 }
 
-function buildRow(f: RawFeature): FeatureRow {
+function buildRow(f: RawFeature, nowWeek: WeekId): FeatureRow {
   const startWeek = mondayOf(f.start)
   const originalWeek = mondayOf(f.original)
   const deliveredWeek = f.delivered ? mondayOf(f.delivered) : undefined
@@ -62,7 +62,11 @@ function buildRow(f: RawFeature): FeatureRow {
     markers.push({ week: originalWeek, kind: 'original' })
   }
 
-  const barEndWeek = [startWeek, ...markers.map((m) => m.week)].reduce((a, b) => (a > b ? a : b))
+  const intrinsicEnd = [startWeek, ...markers.map((m) => m.week)].reduce((a, b) => (a > b ? a : b))
+  // A delivered Feature's bar ends at its delivery. An undelivered Feature that
+  // is already past its furthest estimate keeps "running" up to now (overdue),
+  // so its bar extends to the now week; otherwise it ends at the last marker.
+  const barEndWeek = delivered || intrinsicEnd > nowWeek ? intrinsicEnd : nowWeek
 
   return {
     name: f.name,
