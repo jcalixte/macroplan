@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useMacroplan } from './composables/useMacroplan'
+import { usePngExport, exportFilename } from './composables/usePngExport'
 import PlanEditor from './components/PlanEditor.vue'
 import MacroplanGrid from './components/MacroplanGrid.vue'
 
 const { source, plan, error, resetToSample } = useMacroplan()
+const { busy, toast, copyPng, downloadPng } = usePngExport()
+
+const exportRoot = ref<HTMLElement>()
 </script>
 
 <template>
@@ -16,6 +21,23 @@ const { source, plan, error, resetToSample } = useMacroplan()
           A week-granular, learning-oriented record of what we committed to deliver.
         </p>
       </div>
+      <button
+        class="btn btn-ghost btn-sm"
+        :disabled="!plan || busy"
+        title="Copy the rendered plan to the clipboard as a PNG"
+        @click="copyPng(exportRoot)"
+      >
+        <span v-if="busy" class="loading loading-spinner loading-xs"></span>
+        Copy PNG
+      </button>
+      <button
+        class="btn btn-ghost btn-sm"
+        :disabled="!plan || busy"
+        title="Download the rendered plan as a PNG"
+        @click="downloadPng(exportRoot, exportFilename(plan?.title ?? ''))"
+      >
+        Download
+      </button>
       <button class="btn btn-ghost btn-sm" @click="resetToSample">Reset to sample</button>
     </header>
 
@@ -30,10 +52,34 @@ const { source, plan, error, resetToSample } = useMacroplan()
       </section>
 
       <section class="min-h-0 flex-1 overflow-auto p-4">
-        <h2 v-if="plan" class="mb-3 text-sm font-semibold text-base-content/70">{{ plan.title }}</h2>
-        <MacroplanGrid v-if="plan" :plan="plan" />
-        <p v-else class="text-sm text-base-content/60">Nothing to render yet — fix the source on the left.</p>
+        <div v-if="plan" ref="exportRoot" class="export-root">
+          <h2 class="mb-3 text-sm font-semibold text-base-content/70">{{ plan.title }}</h2>
+          <MacroplanGrid :plan="plan" />
+        </div>
+        <p v-else class="text-sm text-base-content/60">
+          Nothing to render yet — fix the source on the left.
+        </p>
       </section>
     </main>
+
+    <div v-if="toast" class="toast toast-end">
+      <div class="alert" :class="toast.kind === 'ok' ? 'alert-success' : 'alert-error'">
+        <span>{{ toast.text }}</span>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+/* While exporting, grow to the timeline's full width and un-clip the grid so the
+   captured PNG shows every week column (not just the on-screen scroll window).
+   The base-200 frame + padding give the snapshot a little breathing room. */
+.export-root.exporting {
+  width: max-content;
+  padding: 1rem 1.25rem;
+  background: var(--color-base-200);
+}
+.export-root.exporting :deep(.macroplan) {
+  overflow: visible;
+}
+</style>
