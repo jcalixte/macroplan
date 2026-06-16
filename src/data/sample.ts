@@ -3,6 +3,12 @@
 // an overdue Feature, and a Milestone with unmet required Features.
 export const SAMPLE_PLAN = `title = "Q3 — Checkout revamp"
 
+# Optional plan span: pad the plan with lead-in / trailing weeks.
+# Rule: start ≤ every Feature's start, and end ≥ every Feature's last week.
+# Omit both to auto-fit the columns to the Features and Milestones.
+start = 2026-05-25
+end = 2026-08-03
+
 # A Feature: start week, Original Estimate (the immovable baseline), then any
 # Re-estimates, an optional Delivery, and an optional Learning / Status.
 # Dates are TOML date literals; any day is snapped to that week's Monday.

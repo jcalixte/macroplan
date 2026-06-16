@@ -111,8 +111,8 @@ describe('bar extent relative to now', () => {
 describe('plan derivation', () => {
   it('derives a contiguous week range and places the now line', () => {
     const plan = buildPlan(parseMacroplan(SAMPLE_PLAN), TODAY)
-    expect(plan.weeks[0]).toBe('2026-06-01') // earliest start
-    expect(plan.weeks.at(-1)).toBe('2026-07-20') // latest marker (Payments delivery)
+    expect(plan.weeks[0]).toBe('2026-05-25') // authored span start (lead-in before earliest Feature)
+    expect(plan.weeks.at(-1)).toBe('2026-08-03') // authored span end (trailing past last marker)
     // contiguous, weekly
     expect(plan.weeks).toContain('2026-06-29')
     expect(plan.nowWeek).toBe('2026-06-15')
@@ -125,6 +125,40 @@ describe('plan derivation', () => {
     expect(mvp.week).toBe('2026-07-06')
     // Auth delivered 06-15 (met); Payments delivered 07-20 > 07-06 (unmet); Dashboard undelivered (unmet)
     expect(mvp.unmet.sort()).toEqual(['Dashboard', 'Payments'])
+  })
+})
+
+describe('authored plan span (start / end)', () => {
+  const body = '[[feature]]\nname="X"\nstart=2026-06-08\noriginal=2026-06-15\ndelivered=2026-06-15\n'
+
+  it('extends the range earlier to `start` and later to `end`', () => {
+    const plan = buildPlan(parseMacroplan(`start = 2026-06-01\nend = 2026-06-29\n${body}`), TODAY)
+    expect(plan.weeks).toEqual(weekRange('2026-06-01', '2026-06-29'))
+    expect(plan.weeks[0]).toBe('2026-06-01') // before the earliest Feature week (06-08)
+    expect(plan.weeks.at(-1)).toBe('2026-06-29') // after the last marker (06-15)
+  })
+
+  it('snaps authored bounds to their Monday', () => {
+    const plan = buildPlan(parseMacroplan(`start = 2026-06-03\nend = 2026-06-24\n${body}`), TODAY)
+    expect(plan.weeks[0]).toBe('2026-06-01') // Wed 06-03 → Mon 06-01
+    expect(plan.weeks.at(-1)).toBe('2026-06-22') // Wed 06-24 → Mon 06-22
+  })
+
+  it('only extends — a marker outside the authored bounds is never clipped', () => {
+    // end 06-08 is before the Feature's 06-15 delivery → the range still includes it
+    const plan = buildPlan(parseMacroplan(`start = 2026-06-08\nend = 2026-06-08\n${body}`), TODAY)
+    expect(plan.weeks[0]).toBe('2026-06-08')
+    expect(plan.weeks.at(-1)).toBe('2026-06-15')
+  })
+
+  it('renders an empty plan across the authored bounds when there are no Features', () => {
+    const plan = buildPlan(parseMacroplan('start = 2026-06-01\nend = 2026-06-22\n'), TODAY)
+    expect(plan.rows).toHaveLength(0)
+    expect(plan.weeks).toEqual(weekRange('2026-06-01', '2026-06-22'))
+  })
+
+  it('rejects a non-date span bound', () => {
+    expect(() => parseMacroplan('start = 123\n')).toThrow(/start/)
   })
 })
 
