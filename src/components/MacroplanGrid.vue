@@ -45,10 +45,15 @@ const TONE_DOT: Record<Tone, string> = {
   neutral: 'bg-base-300',
 }
 
+// Layout constants (must match the CSS vars --name-w / --wk) for stacking math.
+const NAME_W = 9 * 16
+const WK = 3.5 * 16
+const BAND_CHAR = 6.6 // ≈ Fira Code advance (px) at the band font size
+
 const weeks = computed(() => props.plan.weeks)
 
 const gridStyle = computed(() => ({
-  gridTemplateColumns: `minmax(7rem, max-content) repeat(${weeks.value.length}, var(--wk)) minmax(9rem, 1fr)`,
+  gridTemplateColumns: `var(--name-w) repeat(${weeks.value.length}, var(--wk)) minmax(9rem, 1fr)`,
 }))
 
 function tone(row: FeatureRow): Tone {
@@ -78,8 +83,8 @@ function markerAt(row: FeatureRow, w: WeekId): MarkerKind | null {
 }
 
 interface Cell {
-  // how far the bar line runs within this cell: none, half-from-center-right,
-  // half-from-left-to-center, or full width
+  // how far the bar line runs within this cell: none, center→right,
+  // left→center, or full width
   line: 'none' | 'right' | 'left' | 'full'
   isStart: boolean
   glyph: string
@@ -96,8 +101,6 @@ const matrix = computed<Cell[][]>(() =>
       if (inBar) {
         const isStart = w === row.startWeek
         const isEnd = w === row.barEndWeek
-        // line runs center→edge so it begins and ends at a glyph centre,
-        // never stubbing past the first/last symbol
         line = isStart && isEnd ? 'none' : isStart ? 'right' : isEnd ? 'left' : 'full'
       }
       return {
@@ -110,32 +113,64 @@ const matrix = computed<Cell[][]>(() =>
   ),
 )
 
-// Per-week column metadata for headers + the now / milestone vertical rules.
+// Per-week column metadata for the header + the now / milestone column rules.
 const cols = computed(() =>
   weeks.value.map((w) => ({
     w,
     label: weekLabel(w),
     isNow: props.plan.nowInRange && w === props.plan.nowWeek,
-    milestones: props.plan.milestones.filter((m) => m.week === w),
+    isMilestone: props.plan.milestones.some((m) => m.week === w),
   })),
 )
 
 function colClass(i: number): string {
   const c = cols.value[i]
   if (c.isNow) return 'col-now'
-  if (c.milestones.length) return 'col-ms'
+  if (c.isMilestone) return 'col-ms'
   return ''
 }
 
-function milestoneTitle(ms: Plan['milestones']): string {
-  return ms
-    .map((m) => (m.unmet.length ? `${m.name} — unmet: ${m.unmet.join(', ')}` : `${m.name} — all met`))
-    .join(' · ')
-}
+// Milestone label flags above the axis, greedily stacked onto extra rows so
+// labels in nearby weeks never overlap. `col` is the 1-based grid column.
+const milestoneFlags = computed(() => {
+  const items = props.plan.milestones
+    .map((m) => ({ m, col: weeks.value.indexOf(m.week) + 2 }))
+    .filter((x) => x.col >= 2)
+    .sort((a, b) => a.col - b.col)
+  const rowEnd: number[] = [] // px x-extent of the last flag placed in each row
+  return items.map((x) => {
+    const startX = NAME_W + (x.col - 2) * WK
+    const text = `◆ ${x.m.name}` + (x.m.unmet.length ? ` · ${x.m.unmet.length} unmet` : '')
+    const width = text.length * BAND_CHAR + 14
+    let row = 0
+    while (row < rowEnd.length && rowEnd[row] > startX - 6) row++
+    rowEnd[row] = startX + width
+    const title = x.m.unmet.length
+      ? `${x.m.name} — unmet: ${x.m.unmet.join(', ')}`
+      : `${x.m.name} — all required features met`
+    return { name: x.m.name, unmet: x.m.unmet, col: x.col, row: row + 1, title }
+  })
+})
+const bandRows = computed(() => milestoneFlags.value.reduce((n, f) => Math.max(n, f.row), 0))
+const bandStyle = computed(() => ({
+  gridTemplateColumns: `var(--name-w) repeat(${weeks.value.length}, var(--wk))`,
+  gridTemplateRows: `repeat(${bandRows.value}, 1.15rem)`,
+}))
 </script>
 
 <template>
-  <div class="overflow-auto rounded-box border border-base-300 bg-base-100">
+  <div class="macroplan overflow-auto rounded-box border border-base-300 bg-base-100">
+    <!-- milestone band: stacked label flags with leader lines down to the axis -->
+    <div v-if="milestoneFlags.length" class="ms-band" :style="bandStyle">
+      <template v-for="f in milestoneFlags" :key="f.name + '-' + f.col">
+        <i class="ms-lead" :style="{ gridColumn: f.col, gridRow: f.row + ' / -1' }" />
+        <span class="ms-flag" :style="{ gridColumn: f.col, gridRow: f.row }" :title="f.title">
+          <span class="ms-dia">◆</span> {{ f.name
+          }}<span v-if="f.unmet.length" class="ms-unmet"> · {{ f.unmet.length }} unmet</span>
+        </span>
+      </template>
+    </div>
+
     <div class="plan-grid" :style="gridStyle">
       <!-- header row -->
       <div class="hcell corner">{{ plan.title }}</div>
@@ -147,19 +182,13 @@ function milestoneTitle(ms: Plan['milestones']): string {
       >
         <span class="wklabel">{{ c.label }}</span>
         <span v-if="c.isNow" class="badge-now">now</span>
-        <span
-          v-else-if="c.milestones.length"
-          class="badge-ms"
-          :title="milestoneTitle(c.milestones)"
-        >◆ {{ c.milestones[0].name
-          }}<span v-if="c.milestones.some((m) => m.unmet.length)" class="text-error"> !</span></span>
       </div>
       <div class="hcell learnhead">Learning / Status</div>
 
       <!-- feature rows -->
       <template v-for="(row, ri) in plan.rows" :key="row.name">
         <div class="namecell border-l-4" :class="TONE_BORDER[tone(row)]">
-          <span class="truncate">{{ row.name }}</span>
+          <span class="truncate" :title="row.name">{{ row.name }}</span>
         </div>
         <div
           v-for="(cell, ci) in matrix[ri]"
@@ -192,18 +221,53 @@ function milestoneTitle(ms: Plan['milestones']): string {
     <span><b class="text-success">◉</b> on time</span>
     <span><b class="text-error">▲</b> late</span>
     <span><b>┣━</b> feature bar</span>
-    <span><b class="text-error">◆</b> milestone</span>
+    <span><b class="ms-dia">◆</b> milestone</span>
     <span><b class="now-swatch"></b> today</span>
   </div>
 </template>
 
 <style scoped>
-.plan-grid {
+.macroplan {
+  --name-w: 9rem;
   --wk: 3.5rem;
+}
+.plan-grid {
   display: grid;
   width: max-content;
   min-width: 100%;
   font-variant-ligatures: none;
+}
+
+/* ── Milestone band ───────────────────────────────────────────────── */
+.ms-band {
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+  padding-top: 0.35rem;
+  font-variant-ligatures: none;
+}
+.ms-flag {
+  align-self: center;
+  white-space: nowrap;
+  overflow: visible;
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-base-content);
+  z-index: 1;
+}
+.ms-dia {
+  color: color-mix(in oklab, var(--color-base-content) 55%, var(--color-base-100));
+}
+.ms-unmet {
+  color: var(--color-error); /* unmet required features = a problem = red */
+  font-weight: 700;
+}
+.ms-lead {
+  justify-self: start;
+  width: 0;
+  border-left: 2px dashed color-mix(in oklab, var(--color-base-content) 30%, var(--color-base-100));
+  pointer-events: none;
 }
 
 .hcell {
@@ -241,13 +305,6 @@ function milestoneTitle(ms: Plan['milestones']): string {
   font-size: 0.58rem;
   font-weight: 700;
   color: var(--color-primary);
-}
-.badge-ms {
-  font-size: 0.58rem;
-  font-weight: 600;
-  max-width: 6rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .learnhead {
   text-align: left;
@@ -346,15 +403,13 @@ function milestoneTitle(ms: Plan['milestones']): string {
   flex: none;
 }
 
-.cell.col-now {
-  background: color-mix(in oklch, var(--color-primary) 9%, var(--color-base-100));
-}
+/* "today" — a neutral grey column (red is reserved for problems) */
+.cell.col-now,
 .cell.col-now .glyph {
-  /* match the column tint so the halo doesn't punch a hole in it */
-  background: color-mix(in oklch, var(--color-primary) 9%, var(--color-base-100));
+  background: color-mix(in oklab, var(--color-base-content) 7%, var(--color-base-100));
 }
 .col-ms {
-  border-left: 2px dashed color-mix(in oklch, var(--color-base-content) 35%, transparent);
+  border-left: 2px dashed color-mix(in oklab, var(--color-base-content) 30%, var(--color-base-100));
 }
 
 .legend {
@@ -374,7 +429,7 @@ function milestoneTitle(ms: Plan['milestones']): string {
   height: 0.8rem;
   vertical-align: -0.1rem;
   border-radius: 0.15rem;
-  background: color-mix(in oklch, var(--color-primary) 9%, var(--color-base-100));
-  border: 1px solid color-mix(in oklch, var(--color-primary) 30%, var(--color-base-100));
+  background: color-mix(in oklab, var(--color-base-content) 7%, var(--color-base-100));
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 22%, var(--color-base-100));
 }
 </style>
