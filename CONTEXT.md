@@ -37,7 +37,7 @@ A Feature's *current* delivery confidence (a snapshot, overwritten each review):
 _Avoid_: health, RAG, risk
 
 **Week**:
-A column of the plan: one real calendar week, identified and labelled by the date of its first workday (Monday). Columns run contiguously from the earliest Feature start to the last marker or Milestone — empty weeks in between are still drawn.
+A column of the plan: one real calendar week, identified and labelled by the date of its first workday (Monday). Columns run contiguously from the earliest Feature start to the last marker or Milestone — empty weeks in between are still drawn. An optional authored **start**/**end** widens this span with lead-in or trailing empty Weeks; it only ever extends the range, never narrowing it or hiding a Feature.
 _Avoid_: column, period, sprint
 
 **Now line**:
