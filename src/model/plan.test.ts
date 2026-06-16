@@ -85,6 +85,29 @@ describe('F2 — on-time / late classification (ADR-0001)', () => {
   })
 })
 
+describe('bar extent relative to now', () => {
+  const feat = (extra: string) =>
+    `[[feature]]\nname = "X"\nstart = 2026-06-01\noriginal = 2026-06-08\n${extra}\n`
+
+  it('extends an overdue undelivered bar to the now week, keeping ◯ at the estimate', () => {
+    // original 2026-06-08 is before now (week of 2026-06-15) and undelivered → overdue
+    const r = rowOf(feat('status = "red"'), 'X')
+    expect(r.delivered).toBe(false)
+    expect(r.barEndWeek).toBe('2026-06-15') // runs up to now, past the 06-08 estimate
+    expect(r.markers.find((m) => m.kind === 'original')?.week).toBe('2026-06-08')
+  })
+
+  it('does not extend a delivered bar past its delivery, even when now is later', () => {
+    const r = rowOf(feat('delivered = 2026-06-08'), 'X')
+    expect(r.barEndWeek).toBe('2026-06-08') // ends at delivery, not at the now week
+  })
+
+  it('ends an on-track undelivered bar at the future estimate (no extension back to now)', () => {
+    const r = rowOf('[[feature]]\nname="X"\nstart=2026-06-22\noriginal=2026-07-06\n', 'X')
+    expect(r.barEndWeek).toBe('2026-07-06')
+  })
+})
+
 describe('plan derivation', () => {
   it('derives a contiguous week range and places the now line', () => {
     const plan = buildPlan(parseMacroplan(SAMPLE_PLAN), TODAY)
