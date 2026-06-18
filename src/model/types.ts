@@ -1,6 +1,6 @@
 import type { WeekId } from './week'
 
-export type StatusLevel = 'green' | 'orange' | 'red'
+export type StatusLevel = 'on-track' | 'at-risk' | 'off-track'
 
 // ── Raw model: as authored, after TOML parse + validation, before derivation ──
 

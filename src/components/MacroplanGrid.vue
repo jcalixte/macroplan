@@ -58,20 +58,14 @@ const gridStyle = computed(() => ({
 
 function tone(row: FeatureRow): Tone {
   if (row.delivered) return row.onTime ? 'success' : 'error'
-  if (row.status === 'green') return 'success'
-  if (row.status === 'orange') return 'warning'
-  if (row.status === 'red') return 'error'
+  if (row.status === 'on-track') return 'success'
+  if (row.status === 'at-risk') return 'warning'
+  if (row.status === 'off-track') return 'error'
   return 'neutral'
 }
 
 function statusWord(row: FeatureRow): string {
-  return row.status === 'green'
-    ? 'on track'
-    : row.status === 'orange'
-      ? 'at risk'
-      : row.status === 'red'
-        ? 'blocked'
-        : 'in flight'
+  return row.status ? row.status.replace('-', ' ') : 'in flight'
 }
 
 function markerAt(row: FeatureRow, w: WeekId): MarkerKind | null {

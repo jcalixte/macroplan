@@ -11,7 +11,7 @@ export class PlanParseError extends Error {
   }
 }
 
-const STATUSES = ['green', 'orange', 'red'] as const satisfies readonly StatusLevel[]
+const STATUSES = ['on-track', 'at-risk', 'off-track'] as const satisfies readonly StatusLevel[]
 
 // ── Field schemas ──────────────────────────────────────────────────────────
 // A TOML date (smol-toml returns a Date subclass) or a yyyy-mm-dd string,

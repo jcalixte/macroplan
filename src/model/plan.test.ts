@@ -76,10 +76,10 @@ describe('F2 — on-time / late classification (ADR-0001)', () => {
   })
 
   it('in-flight (undelivered) → ◯ only, onTime null, bar ends at the furthest estimate', () => {
-    const r = rowOf(base('reestimates = [2026-06-29]\nstatus = "red"'), 'X')
+    const r = rowOf(base('reestimates = [2026-06-29]\nstatus = "off-track"'), 'X')
     expect(r.onTime).toBeNull()
     expect(r.delivered).toBe(false)
-    expect(r.status).toBe('red')
+    expect(r.status).toBe('off-track')
     expect(r.barEndWeek).toBe('2026-06-29') // furthest open estimate
     expect(r.markers.some((m) => m.kind === 'original')).toBe(true)
   })
@@ -91,7 +91,7 @@ describe('bar extent relative to now', () => {
 
   it('extends an overdue undelivered bar to the now week, keeping ◯ at the estimate', () => {
     // original 2026-06-08 is before now (week of 2026-06-15) and undelivered → overdue
-    const r = rowOf(feat('status = "red"'), 'X')
+    const r = rowOf(feat('status = "off-track"'), 'X')
     expect(r.delivered).toBe(false)
     expect(r.barEndWeek).toBe('2026-06-15') // runs up to now, past the 06-08 estimate
     expect(r.markers.find((m) => m.kind === 'original')?.week).toBe('2026-06-08')

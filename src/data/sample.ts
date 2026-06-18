@@ -1,5 +1,5 @@
 // Default Macroplan shown on first load — exercises every state:
-// on-time delivery, late delivery with slips, in-flight (green/orange/red),
+// on-time delivery, late delivery with slips, in-flight (on-track/at-risk/off-track),
 // an overdue Feature, and a Milestone with unmet required Features.
 export const SAMPLE_PLAN = `title = "Q3 — Checkout revamp"
 
@@ -32,7 +32,7 @@ learning = "Vendor lead time was the real constraint — derisk vendors up front
 name = "Dashboard"
 start = 2026-06-01
 original = 2026-06-08           # already past 'now' and undelivered → overdue
-status = "red"
+status = "off-track"
 note = "No recovery plan yet — needs an owner."
 
 [[feature]]
@@ -40,14 +40,14 @@ name = "Search"
 start = 2026-06-08
 original = 2026-06-22
 reestimates = [2026-07-06]      # re-estimated once, still in flight → △
-status = "orange"
+status = "at-risk"
 note = "Third-party search API is flaky; spike a fallback."
 
 [[feature]]
 name = "Notifications"
 start = 2026-06-22
 original = 2026-07-06
-status = "green"
+status = "on-track"
 
 [[milestone]]
 name = "Code freeze"
