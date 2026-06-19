@@ -167,7 +167,7 @@ const bandStyle = computed(() => ({
 
     <div class="plan-grid" :style="gridStyle">
       <!-- header row -->
-      <div class="hcell corner">{{ plan.title }}</div>
+      <div class="hcell corner">Feature</div>
       <div
         v-for="(c, ci) in cols"
         :key="'h-' + c.w"
