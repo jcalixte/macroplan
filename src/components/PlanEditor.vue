@@ -228,7 +228,11 @@ function syncScroll() {
   padding: 0.9rem 1rem;
   font-family: inherit; /* Fira Code, from the global theme */
   font-size: 0.8rem;
-  line-height: 1.6;
+  /* Integer px, NOT a unitless ratio: a fractional line box (0.8rem × 1.6 =
+     20.48px) is rounded differently by a <textarea> than by the <pre> backdrop,
+     so the caret drifts further from its glyph the more lines precede it —
+     visible at the bottom of a tall file. An integer height rounds identically. */
+  line-height: 20px;
   tab-size: 2;
   white-space: pre;
 }
