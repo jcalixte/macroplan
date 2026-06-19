@@ -66,6 +66,10 @@ describe("completion context", () => {
     expect(labelsAt('[[feature]]\nstatus = "o|')).toEqual(["on-track", "off-track"])
   })
 
+  it("offers nothing once the status value's quote is closed", () => {
+    expect(getCompletions(...atCaret('[[feature]]\nstatus = "on-track"|'))).toBeNull()
+  })
+
   it("suggests feature names inside a milestone requires array", () => {
     const source = '[[feature]]\nname = "Payments"\n\n[[milestone]]\nrequires = ["|'
     expect(labelsAt(source)).toEqual(["Payments"])

@@ -63,8 +63,8 @@ export function getCompletions(
   const lineStart = source.lastIndexOf("\n", caret - 1) + 1
   const linePrefix = source.slice(lineStart, caret)
 
-  // ── value: status = "<here>" ──────────────────────────────────────────────
-  const status = /^(\s*status\s*=\s*)"?([A-Za-z-]*)"?$/.exec(linePrefix)
+  // ── value: status = "<here>" — while typing, not once the quote is closed ──
+  const status = /^(\s*status\s*=\s*)"?([A-Za-z-]*)$/.exec(linePrefix)
   if (status) {
     const items = filter(
       STATUSES.map((s) => ({ label: s, insert: `"${s}"` })),
