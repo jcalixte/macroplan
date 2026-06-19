@@ -147,6 +147,12 @@ function escapeHtml(s: string): string {
 
 function onInput(e: Event) {
   emit("update:modelValue", (e.target as HTMLTextAreaElement).value)
+  // Deleting text (backspace, forward-delete, cut) shouldn't summon the popup —
+  // the author is removing, not asking for suggestions. Close it and stop.
+  if ((e as InputEvent).inputType?.startsWith("delete")) {
+    completion.value = null
+    return
+  }
   refresh()
 }
 
