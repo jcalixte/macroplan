@@ -265,8 +265,8 @@ function syncScroll() {
   margin: 0;
   padding: 0.25rem;
   list-style: none;
-  min-width: 13rem;
-  max-width: 22rem;
+  min-width: 16rem;
+  max-width: 30rem;
   max-height: 14rem;
   overflow-y: auto;
   background: var(--color-base-100);
