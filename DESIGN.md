@@ -404,6 +404,10 @@ Strength of each Component in realising each Function (9/3/1/blank). Component l
 \def\qfdWhatW{4.6}
 \def\qfdWhatsTitle{Goals (WHATs)}
 \def\qfdImpTitle{Weight}
+\def\qfdProjectTitle{Macroplan}
+\def\qfdConcept{A \textbf{week-granular} plan view that holds every
+  \textbf{Feature} honest against its \textbf{Original Estimate} and turns
+  the slips into captured \textbf{Learnings}.}
 \qfdshowcompetitivefalse
 
 \begin{document}
