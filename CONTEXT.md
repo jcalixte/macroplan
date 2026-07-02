@@ -48,6 +48,10 @@ _Avoid_: today marker, cursor
 The collection of saved **Macroplans** held in the browser's localStorage — the live store. Always holds at least one Macroplan; durability rests on exporting a Macroplan's `.toml` (per ADR-0002), not on the Library itself. Carries no status of its own.
 _Avoid_: workspace, project, file list
 
+**Format version**:
+Which revision of the portable Macroplan `.toml` format a file targets, declared by an optional top-level `macroplan_version` (currently `1`). Absent means the current version; a newer version is rejected rather than silently mis-rendered. The format — its fields and render semantics — is defined in [docs/format.md](docs/format.md) so a Macroplan can be produced or consumed outside this app.
+_Avoid_: schema version, file version, app version
+
 ## Symbols
 
 - `┣` start of a Feature's bar
