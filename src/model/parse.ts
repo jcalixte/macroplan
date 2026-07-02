@@ -45,6 +45,11 @@ const MilestoneSchema = v.object({
   ),
 })
 
+/** The Macroplan format version this build understands (see docs/format.md).
+ *  Files may declare `macroplan_version`; a newer version is rejected rather
+ *  than silently mis-rendered against a schema we don't know. */
+export const FORMAT_VERSION = 1
+
 /** Parse + validate a Macroplan TOML source into the raw model. */
 export function parseMacroplan(source: string): RawPlan {
   let data: Record<string, unknown>
@@ -54,16 +59,48 @@ export function parseMacroplan(source: string): RawPlan {
     throw new PlanParseError(e instanceof Error ? e.message : String(e))
   }
 
+  checkVersion(data.macroplan_version)
+
+  const features = asBlocks(data.feature, "feature").map((f, i) =>
+    check(FeatureSchema, f, blockWhere("feature", f, i)),
+  )
+  requireUniqueFeatureNames(features)
+
   return {
     title: data.title != null ? String(data.title) : "Untitled Macroplan",
     start: data.start != null ? check(Ymd, data.start, "plan", "start") : undefined,
     end: data.end != null ? check(Ymd, data.end, "plan", "end") : undefined,
-    features: asBlocks(data.feature, "feature").map((f, i) =>
-      check(FeatureSchema, f, blockWhere("feature", f, i)),
-    ),
+    features,
     milestones: asBlocks(data.milestone, "milestone").map((m, i) =>
       check(MilestoneSchema, m, blockWhere("milestone", m, i)),
     ),
+  }
+}
+
+/** Validate the optional `macroplan_version` marker. Absent means the current
+ *  version; a future version we don't understand is rejected rather than
+ *  silently mis-rendered. */
+function checkVersion(value: unknown): void {
+  if (value == null) return
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new PlanParseError("`macroplan_version` must be a positive integer")
+  }
+  if (value > FORMAT_VERSION) {
+    throw new PlanParseError(
+      `unsupported macroplan_version ${value} — this build understands up to ${FORMAT_VERSION}`,
+    )
+  }
+}
+
+/** Feature names are the join key for a Milestone's `requires`, so they must be
+ *  unique — otherwise a requirement resolves ambiguously to the first match. */
+function requireUniqueFeatureNames(features: readonly { name: string }[]): void {
+  const seen = new Set<string>()
+  for (const f of features) {
+    if (seen.has(f.name)) {
+      throw new PlanParseError(`duplicate feature name "${f.name}" — feature names must be unique`)
+    }
+    seen.add(f.name)
   }
 }
 

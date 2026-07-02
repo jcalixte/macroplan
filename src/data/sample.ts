@@ -1,7 +1,10 @@
 // Default Macroplan shown on first load — exercises every state:
 // on-time delivery, late delivery with slips, in-flight (on-track/at-risk/off-track),
 // an overdue Feature, and a Milestone with unmet required Features.
-export const SAMPLE_PLAN = `title = "Q3 — Checkout revamp"
+export const SAMPLE_PLAN = `# Macroplan format version — optional; current is 1. See docs/format.md.
+macroplan_version = 1
+
+title = "Q3 — Checkout revamp"
 
 # Optional plan span: pad the plan with lead-in / trailing weeks.
 # Rule: start ≤ every Feature's start, and end ≥ every Feature's last week.
