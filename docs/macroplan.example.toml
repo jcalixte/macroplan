@@ -1,0 +1,79 @@
+#:schema https://macroplan.apoena.dev/macroplan.schema.json
+#
+# Reference Macroplan — a conformance sample exercising every field and state.
+# The authoritative definition of this format is docs/format.md.
+
+# Format version. Optional; the current version is 1. Omitting it means "1".
+macroplan_version = 1
+
+title = "Q3 — Checkout revamp"
+
+# Optional plan span: pad the plan with lead-in / trailing weeks.
+# Rule: `start` only ever extends the span left, `end` extends it right;
+# neither clips a feature. Omit both to auto-fit the columns.
+start = 2026-05-25
+end = 2026-08-03
+
+# Dates are TOML date literals. Any day snaps to that week's Monday.
+
+# On-time delivery: delivered on/before the Original Estimate → ◉ (subsumes ◯).
+[[feature]]
+name = "Auth"
+start = 2026-06-01
+original = 2026-06-15
+delivered = 2026-06-15
+learning = "Spiking the OAuth flow first paid off — do discovery spikes earlier."
+
+# Late delivery with slips: ◯ baseline kept, one △ per re-estimate, then ▲.
+# Late because delivery (07-20) is after `original` (06-15) — the re-estimates
+# never move the goalpost (ADR-0001).
+[[feature]]
+name = "Payments"
+start = 2026-06-01
+original = 2026-06-15
+reestimates = [2026-06-29, 2026-07-13]
+delivered = 2026-07-20
+learning = "Vendor lead time was the real constraint — derisk vendors up front."
+
+# In-flight and overdue: undelivered, `original` already in the past → ◯ only,
+# bar runs to "now". `status` + `note` express confidence while it's open.
+[[feature]]
+name = "Dashboard"
+start = 2026-06-01
+original = 2026-06-08
+status = "off-track"
+note = "No recovery plan yet — needs an owner."
+
+# In-flight, re-estimated once: ◯ + △, still open.
+[[feature]]
+name = "Search"
+start = 2026-06-08
+original = 2026-06-22
+reestimates = [2026-07-06]
+status = "at-risk"
+note = "Third-party search API is flaky; spike a fallback."
+
+# In-flight, on track: the minimal feature — only the three required fields
+# plus a status.
+[[feature]]
+name = "Notifications"
+start = 2026-06-22
+original = 2026-07-06
+status = "on-track"
+
+# Milestones tie a due week to the features that must ship by then.
+[[milestone]]
+name = "Code freeze"
+week = 2026-06-29
+requires = ["Auth", "Payments"]
+
+[[milestone]]
+name = "MVP go-live"
+week = 2026-07-06
+requires = ["Auth", "Payments", "Dashboard"]
+
+# A milestone with no requirements is valid too.
+[[milestone]]
+name = "Beta launch"
+week = 2026-07-13
+requires = ["Search", "Notifications"]
