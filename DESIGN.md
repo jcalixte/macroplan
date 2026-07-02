@@ -491,7 +491,6 @@ Strength of each Component in realising each Function (9/3/1/blank). Component l
 
 **C3 (Grid renderer)** and **C2 (Plan model)** each anchor three functions — they're the load-bearing components and the most important to get right and test hard.
 
-
 ## 7. Critical performance budget
 
 | Rank | Function | Target                                            | Watched on                                                              | If we miss it                                                                                    |
