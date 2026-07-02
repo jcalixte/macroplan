@@ -14,11 +14,12 @@ function labelsAt(marked: string): string[] {
 }
 
 describe("completion context", () => {
-  it("offers plan keys and block headers on an empty top-level line", () => {
-    expect(labelsAt("|")).toEqual(["title", "start", "end", "[[feature]]", "[[milestone]]"])
+  it("offers plan keys on an empty top-level line", () => {
+    // Headers wait for a blank line above; at the very top there's nothing above.
+    expect(labelsAt("|")).toEqual(["title", "start", "end"])
   })
 
-  it("offers feature keys inside a [[feature]] block", () => {
+  it("offers feature keys inside a [[feature]] block, no headers on the first line", () => {
     expect(labelsAt("[[feature]]\n|")).toEqual([
       "name",
       "start",
@@ -28,14 +29,27 @@ describe("completion context", () => {
       "status",
       "learning",
       "note",
-      "[[feature]]",
-      "[[milestone]]",
     ])
   })
 
-  it("offers milestone keys inside a [[milestone]] block", () => {
-    expect(labelsAt("[[milestone]]\n|")).toEqual([
-      "name",
+  it("offers milestone keys inside a [[milestone]] block, no headers on the first line", () => {
+    expect(labelsAt("[[milestone]]\n|")).toEqual(["name", "week", "requires"])
+  })
+
+  it("keeps offering remaining keys on a single new line, still without headers", () => {
+    expect(labelsAt('[[milestone]]\nname = "M"\n|')).toEqual(["week", "requires"])
+  })
+
+  it("volunteers block headers only after a blank line (two new lines)", () => {
+    const filled = '[[milestone]]\nname = "M"\nweek = 2026-01-01\nrequires = []'
+    // Directly under the last property: nothing left to add ⇒ no popup.
+    expect(getCompletions(...atCaret(`${filled}\n|`))).toBeNull()
+    // A blank line signals a new block is wanted ⇒ offer the headers.
+    expect(labelsAt(`${filled}\n\n|`)).toEqual(["[[feature]]", "[[milestone]]"])
+  })
+
+  it("volunteers headers after a blank line even with keys still open", () => {
+    expect(labelsAt('[[milestone]]\nname = "M"\n\n|')).toEqual([
       "week",
       "requires",
       "[[feature]]",

@@ -108,7 +108,16 @@ export function getCompletions(
     const keys =
       block === "feature" ? FEATURE_KEYS : block === "milestone" ? MILESTONE_KEYS : PLAN_KEYS
     const taken = presentKeys(source, lineStart, block)
-    const items = filter([...keys.filter((k) => !taken.has(k.label)), ...HEADERS], word)
+    const remaining = keys.filter((k) => !taken.has(k.label))
+    // Volunteer a new block header only once there's a blank line above: a new
+    // [[…]] wants a gap before it, so offering one right under the last property
+    // (or straight after the header line) pops the menu up too eagerly. Typing a
+    // bare `[` still summons headers anywhere (handled above). With all keys set
+    // and no gap, `remaining` is empty ⇒ result() returns null ⇒ no popup.
+    const items = filter(
+      blankLineAbove(source, lineStart) ? [...remaining, ...HEADERS] : remaining,
+      word,
+    )
     return result(caret - word.length, caret, items)
   }
 
@@ -117,6 +126,14 @@ export function getCompletions(
 
 function result(from: number, to: number, items: Completion[]): CompletionContext | null {
   return items.length ? { from, to, items } : null
+}
+
+/** Is the line directly above the caret's line blank (empty or whitespace only)?
+ *  Gates header suggestions to the "two new lines" rule — see the key branch. */
+function blankLineAbove(source: string, lineStart: number): boolean {
+  if (lineStart === 0) return false // top of the document — nothing above
+  const prevStart = source.lastIndexOf("\n", lineStart - 2) + 1
+  return /^[ \t]*$/.test(source.slice(prevStart, lineStart - 1))
 }
 
 /** Today as yyyy-mm-dd in the author's local zone — the calendar day they see,
