@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest"
+import exampleToml from "../../docs/macroplan.example.toml?raw"
 import { parseMacroplan, PlanParseError } from "./parse"
 import { buildPlan } from "./plan"
 import { mondayOf, weekRange } from "./week"
@@ -177,6 +178,45 @@ describe("parse validation", () => {
 
   it("parses the bundled sample without error", () => {
     const raw = parseMacroplan(SAMPLE_PLAN)
+    expect(raw.features).toHaveLength(5)
+    expect(raw.milestones).toHaveLength(3)
+  })
+})
+
+describe("format version (macroplan_version)", () => {
+  const feature = '[[feature]]\nname = "A"\nstart = 2026-06-01\noriginal = 2026-06-08\n'
+
+  it("accepts an explicit current version", () => {
+    expect(() => parseMacroplan(`macroplan_version = 1\n${feature}`)).not.toThrow()
+  })
+
+  it("accepts an absent version (defaults to current)", () => {
+    expect(() => parseMacroplan(feature)).not.toThrow()
+  })
+
+  it("rejects a future/unsupported version rather than mis-rendering it", () => {
+    expect(() => parseMacroplan(`macroplan_version = 2\n${feature}`)).toThrow(/unsupported/)
+  })
+
+  it("rejects a non-integer version", () => {
+    expect(() => parseMacroplan(`macroplan_version = 1.5\n${feature}`)).toThrow(/macroplan_version/)
+  })
+})
+
+describe("feature-name uniqueness", () => {
+  it("rejects duplicate feature names (they are the milestone join key)", () => {
+    const dup =
+      '[[feature]]\nname = "A"\nstart = 2026-06-01\noriginal = 2026-06-08\n' +
+      '[[feature]]\nname = "A"\nstart = 2026-06-01\noriginal = 2026-06-15\n'
+    expect(() => parseMacroplan(dup)).toThrow(/duplicate/)
+    expect(() => parseMacroplan(dup)).toThrow(PlanParseError)
+  })
+})
+
+describe("reference example (docs/macroplan.example.toml)", () => {
+  it("conforms to the format the parser implements", () => {
+    const raw = parseMacroplan(exampleToml)
+    expect(raw.title).toBe("Q3 — Checkout revamp")
     expect(raw.features).toHaveLength(5)
     expect(raw.milestones).toHaveLength(3)
   })
