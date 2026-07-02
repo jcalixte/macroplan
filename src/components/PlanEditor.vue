@@ -2,12 +2,14 @@
 import { ref, computed, onMounted, nextTick } from "vue"
 import type { HighlighterCore } from "shiki/core"
 import { getCompletions, type CompletionContext } from "./completion"
+import { fitPopup } from "./popupFit"
 
 const props = defineProps<{ modelValue: string; error: string | null }>()
 const emit = defineEmits<{ "update:modelValue": [value: string] }>()
 
 const textarea = ref<HTMLTextAreaElement>()
 const backdrop = ref<HTMLElement>()
+const popupEl = ref<HTMLElement>()
 const highlighter = ref<HighlighterCore>()
 
 // ── Completion popup state ───────────────────────────────────────────────────
@@ -75,10 +77,29 @@ function position() {
   const line = before.slice(before.lastIndexOf("\n") + 1)
   let col = 0
   for (const ch of line) col = ch === "\t" ? col + (2 - (col % 2)) : col + 1
-  popup.value = {
-    left: metrics.padLeft + col * metrics.charWidth - el.scrollLeft,
-    top: metrics.padTop + (lineIndex + 1) * metrics.lineHeight - el.scrollTop,
-  }
+  const caretLeft = metrics.padLeft + col * metrics.charWidth - el.scrollLeft
+  const caretTop = metrics.padTop + lineIndex * metrics.lineHeight - el.scrollTop
+  popup.value = { left: caretLeft, top: caretTop + metrics.lineHeight }
+  // The popup has no measurable size until Vue has rendered it; adjust once it does.
+  nextTick(() => keepInView(caretLeft, caretTop))
+}
+
+/** Nudge the popup back inside the window once it has a measurable size. */
+function keepInView(caretLeft: number, caretTop: number) {
+  const el = textarea.value
+  const list = popupEl.value
+  if (!el || !list) return
+  // popup left/top are relative to `.code`, which the textarea fills exactly, so
+  // the textarea rect bridges those local coordinates to the window.
+  const ta = el.getBoundingClientRect()
+  const box = list.getBoundingClientRect()
+  popup.value = fitPopup({
+    caret: { left: caretLeft, top: caretTop },
+    lineHeight: metrics.lineHeight,
+    box: { width: box.width, height: box.height },
+    origin: { left: ta.left, top: ta.top },
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+  })
 }
 
 function accept(i: number) {
@@ -199,6 +220,7 @@ function syncScroll() {
       ></textarea>
       <ul
         v-if="completion"
+        ref="popupEl"
         class="completion"
         :style="{ left: popup.left + 'px', top: popup.top + 'px' }"
       >
