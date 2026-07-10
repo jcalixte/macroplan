@@ -103,7 +103,7 @@ export function getCompletions(
   if (key) {
     const [, indent, brackets, word] = key
     if (brackets) {
-      return result(lineStart + indent.length, caret, filter(HEADERS, word))
+      return result(lineStart + indent.length, caret, filter(headerItems(source, lineStart), word))
     }
     const keys =
       block === "feature" ? FEATURE_KEYS : block === "milestone" ? MILESTONE_KEYS : PLAN_KEYS
@@ -126,6 +126,15 @@ export function getCompletions(
 
 function result(from: number, to: number, items: Completion[]): CompletionContext | null {
   return items.length ? { from, to, items } : null
+}
+
+/** Header completions for a bare `[`. When the block above isn't already set off
+ *  by a blank line, the insert carries a leading newline so accepting `[[…]]`
+ *  never glues the new block onto the previous one. (At the top of the document
+ *  there's nothing to separate, so no gap is added.) */
+function headerItems(source: string, lineStart: number): Completion[] {
+  if (lineStart === 0 || blankLineAbove(source, lineStart)) return HEADERS
+  return HEADERS.map((h) => ({ ...h, insert: "\n" + h.insert }))
 }
 
 /** Is the line directly above the caret's line blank (empty or whitespace only)?
