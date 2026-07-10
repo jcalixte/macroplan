@@ -46,7 +46,7 @@ const TONE_DOT: Record<Tone, string> = {
 }
 
 // Layout constants (must match the CSS vars --name-w / --wk) for stacking math.
-const NAME_W = 9 * 16
+const NAME_W = 16 * 16
 const WK = 3.5 * 16
 const BAND_CHAR = 6.6 // ≈ Fira Code advance (px) at the band font size
 
@@ -224,7 +224,7 @@ const bandStyle = computed(() => ({
 
 <style scoped>
 .macroplan {
-  --name-w: 9rem;
+  --name-w: 16rem;
   --wk: 3.5rem;
 }
 .plan-grid {
