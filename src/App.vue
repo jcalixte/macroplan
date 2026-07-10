@@ -179,4 +179,12 @@ function confirmDelete() {
 .export-root.exporting :deep(.macroplan) {
   overflow: visible;
 }
+/* A PNG has no hover, so text that ellipses on screen (feature names, learning /
+   status notes) must wrap to its full length in the capture instead of being cut.
+   The column width is unchanged, so the milestone band stays aligned. */
+.export-root.exporting :deep(.namecell .truncate),
+.export-root.exporting :deep(.learncell .note) {
+  white-space: normal;
+  overflow: visible;
+}
 </style>
