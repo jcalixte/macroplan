@@ -19,10 +19,6 @@ const popup = ref({ left: 0, top: 0 })
 // Suppress the popup for one keystroke after Escape, so it doesn't pop straight
 // back open while the author is still typing the word they just dismissed.
 let justEscaped = false
-// Whether the author has moved the selection since the popup (re)opened. Tab
-// always accepts; Enter only accepts once they've engaged with the menu — an
-// untouched popup lets Enter do its normal job (a newline) rather than hijack it.
-let engaged = false
 // Pixel metrics of the (monospace, non-wrapping) textarea, measured once.
 let metrics = { charWidth: 8, lineHeight: 20, padLeft: 16, padTop: 14 }
 
@@ -64,7 +60,6 @@ function refresh() {
   if (!el) return
   completion.value = justEscaped ? null : getCompletions(el.value, el.selectionStart)
   selected.value = 0
-  engaged = false
   if (completion.value) position()
 }
 
@@ -125,7 +120,6 @@ function onKeydown(e: KeyboardEvent) {
   if (!ctx) return
   const move = (delta: number) => {
     e.preventDefault()
-    engaged = true
     selected.value = (selected.value + delta + ctx.items.length) % ctx.items.length
   }
   // Ctrl+N / Ctrl+P mirror ArrowDown / ArrowUp (readline-style navigation).
@@ -140,19 +134,12 @@ function onKeydown(e: KeyboardEvent) {
     case "ArrowUp":
       move(-1)
       break
+    case "Enter":
     case "Tab":
+      // Both accept the highlighted item whenever the popup is open. To insert a
+      // newline instead, dismiss the popup with Escape first, then press Enter.
       e.preventDefault()
       accept(selected.value)
-      break
-    case "Enter":
-      // Only steal Enter once the author has navigated the menu; otherwise let
-      // it insert a newline (onInput → refresh reopens the popup if warranted).
-      if (engaged) {
-        e.preventDefault()
-        accept(selected.value)
-      } else {
-        completion.value = null
-      }
       break
     case "Escape":
       e.preventDefault()
