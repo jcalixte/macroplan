@@ -54,20 +54,21 @@ describe("PlanEditor completion keys", () => {
     expect(wrapper.find(".completion").exists()).toBe(false)
   })
 
-  it("Enter does not accept an untouched popup — it closes instead", async () => {
+  it("Enter accepts the selected item without navigating first", async () => {
     const wrapper = mountEditor()
     await type(wrapper, "t")
     await wrapper.find("textarea").trigger("keydown", { key: "Enter" })
-    // No accept happened: the last emit is still the raw typed value.
-    expect(lastEmit(wrapper)).toBe("t")
+    expect(lastEmit(wrapper)).toBe("title = ")
     expect(wrapper.find(".completion").exists()).toBe(false)
   })
 
-  it("Enter accepts once the author has navigated the popup", async () => {
+  it("Escape dismisses the popup so the next Enter is a newline, not an accept", async () => {
     const wrapper = mountEditor()
     await type(wrapper, "t")
-    await wrapper.find("textarea").trigger("keydown", { key: "ArrowDown" })
+    await wrapper.find("textarea").trigger("keydown", { key: "Escape" })
+    expect(wrapper.find(".completion").exists()).toBe(false)
     await wrapper.find("textarea").trigger("keydown", { key: "Enter" })
-    expect(lastEmit(wrapper)).toBe("title = ")
+    // Popup is gone, so Enter accepts nothing — the value stays as typed.
+    expect(lastEmit(wrapper)).toBe("t")
   })
 })
