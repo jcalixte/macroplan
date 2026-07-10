@@ -157,3 +157,25 @@ describe("completion replace range", () => {
     expect(ctx.items[0].insert).toBe("[[feature]]")
   })
 })
+
+describe("bracket header block separation", () => {
+  /** The inserts offered at the `|` marker. */
+  const insertsAt = (marked: string) => {
+    const caret = marked.indexOf("|")
+    const source = marked.slice(0, caret) + marked.slice(caret + 1)
+    return getCompletions(source, caret)!.items.map((i) => i.insert)
+  }
+
+  it("prepends a blank line when a bare [ glues onto the block above", () => {
+    // No blank line above ⇒ accepting must not weld the new block to the old one.
+    expect(insertsAt('[[feature]]\nname = "X"\n[|')).toEqual(["\n[[feature]]", "\n[[milestone]]"])
+  })
+
+  it("adds no leading newline when a blank line already separates the block", () => {
+    expect(insertsAt('[[feature]]\nname = "X"\n\n[|')).toEqual(["[[feature]]", "[[milestone]]"])
+  })
+
+  it("adds no leading newline at the very top of the document", () => {
+    expect(insertsAt("[|")).toEqual(["[[feature]]", "[[milestone]]"])
+  })
+})
