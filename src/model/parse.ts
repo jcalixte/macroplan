@@ -25,6 +25,14 @@ const Status = v.picklist(STATUSES, `must be one of ${STATUSES.join(", ")}`)
 
 const Name = v.pipe(v.string("is required"), v.nonEmpty("is required"))
 
+// An Area name. Surrounding whitespace is invisible in the source, so it is
+// trimmed before the emptiness check — `area = " "` is as empty as `area = ""`.
+const Area = v.pipe(
+  v.string("must be a string"),
+  v.transform((a: string) => a.trim()),
+  v.nonEmpty("must not be empty — omit the key for an ungrouped Feature"),
+)
+
 const FeatureSchema = v.object({
   name: Name,
   start: Ymd,
@@ -34,6 +42,7 @@ const FeatureSchema = v.object({
   learning: v.optional(v.string()),
   status: v.optional(Status),
   note: v.optional(v.string()),
+  area: v.optional(Area),
 })
 
 const MilestoneSchema = v.object({

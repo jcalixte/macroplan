@@ -13,6 +13,7 @@ export interface RawFeature {
   learning?: string
   status?: StatusLevel
   note?: string
+  area?: string // the Area this Feature belongs to; absent → ungrouped
 }
 
 export interface RawMilestone {
@@ -53,6 +54,15 @@ export interface FeatureRow {
   note?: string
   learning?: string
   slipCount: number // number of Re-estimates
+  area?: string // as authored — the first spelling seen for this Area
+}
+
+/** A contiguous run of rows sharing an Area — one labelled band in the grid.
+ *  `area` absent marks the leading band of ungrouped Features. */
+export interface Band {
+  area?: string
+  start: number // index into Plan.rows of the band's first row
+  span: number // how many rows it covers
 }
 
 export interface MilestoneLine {
@@ -65,7 +75,8 @@ export interface MilestoneLine {
 export interface Plan {
   title: string
   weeks: WeekId[]
-  rows: FeatureRow[]
+  rows: FeatureRow[] // grouped: Areas in order of first appearance, ungrouped first
+  bands: Band[]
   milestones: MilestoneLine[]
   nowWeek: WeekId
   nowInRange: boolean

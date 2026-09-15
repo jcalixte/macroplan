@@ -220,4 +220,95 @@ describe("reference example (docs/macroplan.example.toml)", () => {
     expect(raw.features).toHaveLength(5)
     expect(raw.milestones).toHaveLength(3)
   })
+
+  it("bands the reference plan: ungrouped first, then Areas by first appearance", () => {
+    const plan = buildPlan(parseMacroplan(exampleToml), TODAY)
+    expect(plan.rows.map((r) => r.name)).toEqual([
+      "Notifications", // no `area` → leading unlabelled band
+      "Auth",
+      "Payments", // Platform
+      "Dashboard",
+      "Search", // Product — "product" in the file, merged case-insensitively
+    ])
+    expect(plan.bands).toEqual([
+      { area: undefined, start: 0, span: 1 },
+      { area: "Platform", start: 1, span: 2 },
+      { area: "Product", start: 3, span: 2 },
+    ])
+  })
+})
+
+describe("F8 — Area banding", () => {
+  const feat = (name: string, area?: string) =>
+    `[[feature]]\nname = "${name}"\nstart = 2026-06-01\noriginal = 2026-06-15\n` +
+    (area === undefined ? "" : `area = ${JSON.stringify(area)}\n`)
+
+  const bandsOf = (source: string) => buildPlan(parseMacroplan(source), TODAY)
+  const names = (source: string) => bandsOf(source).rows.map((r) => r.name)
+
+  it("a plan with no Areas is one unlabelled band in authored order", () => {
+    const plan = bandsOf(feat("A") + feat("B") + feat("C"))
+    expect(plan.rows.map((r) => r.name)).toEqual(["A", "B", "C"])
+    expect(plan.bands).toEqual([{ area: undefined, start: 0, span: 3 }])
+  })
+
+  it("groups scattered Features and orders bands by first appearance", () => {
+    const source =
+      feat("Deck", "Training") + feat("Email", "Communication") + feat("Trainers", "Training")
+    expect(names(source)).toEqual(["Deck", "Trainers", "Email"])
+    expect(bandsOf(source).bands).toEqual([
+      { area: "Training", start: 0, span: 2 },
+      { area: "Communication", start: 2, span: 1 },
+    ])
+  })
+
+  it("puts ungrouped Features first, in a band with no Area", () => {
+    const source = feat("Deck", "Training") + feat("Loose") + feat("Trainers", "Training")
+    expect(names(source)).toEqual(["Loose", "Deck", "Trainers"])
+    expect(bandsOf(source).bands).toEqual([
+      { area: undefined, start: 0, span: 1 },
+      { area: "Training", start: 1, span: 2 },
+    ])
+  })
+
+  it("omits the ungrouped band entirely when every Feature has an Area", () => {
+    expect(bandsOf(feat("A", "Training")).bands).toEqual([{ area: "Training", start: 0, span: 1 }])
+  })
+
+  it("matches Area names case-insensitively, labelling with the first spelling", () => {
+    const source = feat("A", "Training") + feat("B", "training") + feat("C", "TRAINING")
+    expect(bandsOf(source).bands).toEqual([{ area: "Training", start: 0, span: 3 }])
+  })
+
+  it("trims surrounding whitespace before matching", () => {
+    const source = feat("A", "Training") + feat("B", "  Training  ")
+    expect(bandsOf(source).bands).toEqual([{ area: "Training", start: 0, span: 2 }])
+  })
+
+  it("rejects an empty Area — omit the key to mean ungrouped", () => {
+    expect(() => bandsOf(feat("A", ""))).toThrow(PlanParseError)
+    expect(() => bandsOf(feat("A", "   "))).toThrow(PlanParseError)
+  })
+
+  it("bands cover every row exactly once, in order", () => {
+    const plan = bandsOf(feat("A", "X") + feat("B") + feat("C", "Y") + feat("D", "X"))
+    const covered = plan.bands.flatMap((b) =>
+      plan.rows.slice(b.start, b.start + b.span).map((r) => r.name),
+    )
+    expect(covered).toEqual(plan.rows.map((r) => r.name))
+  })
+
+  it("does not let an Area scope Feature names — a Milestone still joins across bands", () => {
+    const source =
+      feat("Deck", "Training") +
+      feat("Email", "Communication") +
+      `[[milestone]]\nname = "Go-live"\nweek = 2026-06-22\nrequires = ["Deck", "Email"]\n`
+    expect(bandsOf(source).milestones[0].unmet).toEqual(["Deck", "Email"])
+  })
+
+  it("Areas do not affect the plan's week span", () => {
+    const plain = bandsOf(feat("A") + feat("B"))
+    const grouped = bandsOf(feat("A", "X") + feat("B", "Y"))
+    expect(grouped.weeks).toEqual(plain.weeks)
+  })
 })
