@@ -36,6 +36,10 @@ _Avoid_: retro note, lesson, postmortem
 A Feature's _current_ delivery confidence (a snapshot, overwritten each review): **on-track** (all good), **at-risk** (in trouble but we have a plan), **off-track** (in trouble and we have no plan). May carry a comment. Applies only while in-flight; once delivered, the **Learning** takes over and the Status is dropped. An overdue Feature (past its latest estimate, not delivered) is expressed through an at-risk/off-track Status, not a dedicated symbol.
 _Avoid_: health, RAG, risk
 
+**Area**:
+A named group of **Features** that share a discipline or owner (e.g. Change management, Communication, Training). A Feature belongs to at most one Area; Areas partition the plan into labelled row bands, ordered by first appearance. Two spellings that differ only in case or surrounding space name the same Area, labelled by the first spelling used. Pure arrangement — an Area carries no dates, no status of its own, and no rolled-up health: whether it is in trouble is read off its Features. Features with no Area render first, in an unlabelled band.
+_Avoid_: folder, stream, workstream, silo, track (collides with the on-track/off-track **Status**), swimlane, category, epic
+
 **Week**:
 A column of the plan: one real calendar week, identified and labelled by the date of its first workday (Monday). Columns run contiguously from the earliest Feature start to the last marker or Milestone — empty weeks in between are still drawn. An optional authored **start**/**end** widens this span with lead-in or trailing empty Weeks; it only ever extends the range, never narrowing it or hiding a Feature.
 _Avoid_: column, period, sprint
@@ -63,9 +67,10 @@ _Avoid_: schema version, file version, app version
 
 ## Relationships
 
-- A **Macroplan** contains a flat, author-ordered list of **Features** (typically ordered by start **Week**) and many **Milestones**. There is no grouping/workstream concept.
+- A **Macroplan** contains an author-ordered list of **Features** (typically ordered by start **Week**) and many **Milestones**. Features may be grouped into **Areas**; grouping is the only arrangement concept — nothing nests inside an Area but Features, and Areas do not nest.
 - The **Library** holds many **Macroplans**, exactly one of which is active (shown in the editor and grid). Each is identified internally by a stable id and labelled by its **title**.
 - A **Feature** has exactly one **Original Estimate**, zero or more **Re-estimates**, at most one **Delivery**, and at most one **Learning**.
+- A **Feature** belongs to at most one **Area**. Feature names stay unique across the whole Macroplan — an Area does not scope them, so a **Milestone** can keep naming Features across Areas.
 - A **Milestone** explicitly names the **Features** required by it; a Feature may be required by zero, one, or several Milestones, and a Feature may be in the plan without belonging to any Milestone.
 - On-time vs. late is judged against the **Original Estimate**, never a **Re-estimate**.
 
