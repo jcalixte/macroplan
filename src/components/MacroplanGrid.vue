@@ -343,8 +343,14 @@ const bandStyle = computed(() => ({
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  padding-block: 0.5rem;
   background: var(--color-base-200);
   border-right: 1px solid var(--color-base-300);
+}
+/* Hairline between bands: without it, two labels in adjacent bands read as one
+   run of text. The padding alone leaves a gap; the rule says where it ends. */
+.areacell + .areacell {
+  border-top: 1px solid var(--color-base-300);
 }
 /* Reads bottom-to-top, like a chart's Y-axis label — the one dimension a band
    has room in. Truncates (with a title tooltip) for a single-Feature band. */
