@@ -29,6 +29,7 @@ describe("completion context", () => {
       "status",
       "learning",
       "note",
+      "area",
     ])
   })
 
@@ -177,5 +178,36 @@ describe("bracket header block separation", () => {
 
   it("adds no leading newline at the very top of the document", () => {
     expect(insertsAt("[|")).toEqual(["[[feature]]", "[[milestone]]"])
+  })
+})
+
+describe("area value completion", () => {
+  const PLAN =
+    '[[feature]]\nname = "Deck"\narea = "Training"\n\n' +
+    '[[feature]]\nname = "Email"\narea = "Communication"\n\n'
+
+  it("offers Areas already used in the plan", () => {
+    expect(labelsAt(PLAN + '[[feature]]\nname = "X"\narea = |')).toEqual([
+      "Training",
+      "Communication",
+    ])
+  })
+
+  it("filters by what has been typed, inside the opening quote", () => {
+    expect(labelsAt(PLAN + '[[feature]]\nname = "X"\narea = "Tr|')).toEqual(["Training"])
+  })
+
+  it("keeps the first spelling when an Area is written in several cases", () => {
+    const mixed =
+      '[[feature]]\nname = "A"\narea = "Training"\n\n[[feature]]\nname = "B"\narea = "TRAINING"\n\n'
+    expect(labelsAt(mixed + '[[feature]]\nname = "X"\narea = |')).toEqual(["Training"])
+  })
+
+  it("offers nothing in a plan with no Areas yet", () => {
+    expect(labelsAt('[[feature]]\nname = "X"\narea = |')).toEqual([])
+  })
+
+  it("does not offer Areas for a milestone", () => {
+    expect(labelsAt(PLAN + '[[milestone]]\nname = "M"\narea = |')).toEqual([])
   })
 })

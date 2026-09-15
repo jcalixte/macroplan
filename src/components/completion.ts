@@ -38,6 +38,7 @@ const FEATURE_KEYS: Completion[] = [
   { label: "status", insert: "status = ", detail: "on-track | at-risk | off-track" },
   { label: "learning", insert: "learning = ", detail: "string" },
   { label: "note", insert: "note = ", detail: "string" },
+  { label: "area", insert: "area = ", detail: "Area — string, groups Features" },
 ]
 
 const MILESTONE_KEYS: Completion[] = [
@@ -96,6 +97,19 @@ export function getCompletions(
       token[2],
     )
     return result(caret - token[1].length - token[2].length, caret, items)
+  }
+
+  // ── value: area = "<here>" — Areas are implicit, so the only guard against
+  //    spelling drift is offering the ones already in the plan ─────────────────
+  if (block === "feature") {
+    const area = /^(\s*area\s*=\s*)"?([^"]*)$/.exec(linePrefix)
+    if (area) {
+      const items = filter(
+        areaNames(source).map((a) => ({ label: a, insert: `"${a}"` })),
+        area[2],
+      )
+      return result(lineStart + area[1].length, caret, items)
+    }
   }
 
   // ── key / header position: only indentation then an optional word ─────────
@@ -209,6 +223,19 @@ function presentKeys(source: string, lineStart: number, block: Block): Set<strin
 }
 
 /** Names declared in `[[feature]]` blocks — the valid targets for `requires`. */
+/** Areas already used in the plan. Case-insensitively deduplicated, keeping the
+ *  first spelling — the same rule the renderer labels a band by. */
+function areaNames(source: string): string[] {
+  const re = /^[ \t]*area\s*=\s*"([^"]*)"/gm
+  const seen = new Map<string, string>()
+  let m: RegExpExecArray | null
+  while ((m = re.exec(source)) !== null) {
+    const area = m[1].trim()
+    if (area && !seen.has(area.toLowerCase())) seen.set(area.toLowerCase(), area)
+  }
+  return [...seen.values()]
+}
+
 function featureNames(source: string): string[] {
   const re = /^[ \t]*\[\[(feature|milestone)\]\]|^[ \t]*name\s*=\s*"([^"]*)"/gm
   const names = new Set<string>()
