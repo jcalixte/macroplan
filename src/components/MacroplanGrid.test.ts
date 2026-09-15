@@ -50,3 +50,54 @@ describe("MacroplanGrid renders the sample plan", () => {
     expect(mountGrid().text()).toContain("Jun 15")
   })
 })
+
+describe("F8 — Area gutter", () => {
+  const feat = (name: string, area?: string) =>
+    `[[feature]]\nname = "${name}"\nstart = 2026-06-01\noriginal = 2026-06-15\n` +
+    (area ? `area = ${JSON.stringify(area)}\n` : "")
+
+  const grid = (source: string) =>
+    mount(MacroplanGrid, { props: { plan: buildPlan(parseMacroplan(source), "2026-06-17") } })
+
+  const grouped = () => grid(feat("Deck", "Training") + feat("Loose") + feat("Email", "Comms"))
+
+  it("draws one gutter cell per band, labelled and spanning its Features", () => {
+    const cells = grouped().findAll(".areacell")
+    expect(cells.map((c) => c.text())).toEqual(["", "Training", "Comms"])
+    expect(cells.map((c) => c.attributes("style"))).toEqual([
+      expect.stringContaining("grid-row: 2 / span 1"), // ungrouped, leading
+      expect.stringContaining("grid-row: 3 / span 1"),
+      expect.stringContaining("grid-row: 4 / span 1"),
+    ])
+  })
+
+  it("adds no rows — the grid still has exactly one namecell per Feature", () => {
+    expect(grouped().findAll(".namecell")).toHaveLength(3)
+  })
+
+  it("collapses the gutter to zero width when nothing is grouped", () => {
+    const plain = grid(feat("A") + feat("B"))
+    expect(plain.find(".macroplan").attributes("style")).toContain("--area-w: 0rem")
+    expect(plain.findAll(".areacell")).toHaveLength(1) // one unlabelled band
+    expect(plain.find(".areacell").text()).toBe("")
+  })
+
+  it("opens the gutter to 2rem as soon as one Feature has an Area", () => {
+    expect(grouped().find(".macroplan").attributes("style")).toContain("--area-w: 2rem")
+  })
+
+  it("keeps a milestone flag on its own week once a gutter is present (F6 × F8)", () => {
+    const ms = `[[milestone]]\nname = "Go-live"\nweek = 2026-06-15\n`
+    const withArea = grid(feat("A", "Training") + ms)
+    const without = grid(feat("A") + ms)
+    // Same week → same grid column in both; only the gutter's width differs.
+    const col = (w: ReturnType<typeof grid>) => w.find(".ms-flag").attributes("style")
+    expect(col(withArea)).toEqual(col(without))
+    expect(col(withArea)).toContain("grid-column: 5") // gutter, name, then 3 weeks in
+  })
+
+  it("truncates a long label with a tooltip rather than overflowing a 1-row band", () => {
+    const label = grid(feat("A", "Change management")).find(".arealabel")
+    expect(label.attributes("title")).toBe("Change management")
+  })
+})

@@ -45,15 +45,26 @@ const TONE_DOT: Record<Tone, string> = {
   neutral: "bg-base-300",
 }
 
-// Layout constants (must match the CSS vars --name-w / --wk) for stacking math.
+// Layout constants (must match the CSS vars --name-w / --wk / --area-w) for
+// stacking math. Grid column 1 is the Area gutter, 2 the Feature name, then
+// one column per Week — so a Week's 1-based column is its index + 3.
 const NAME_W = 16 * 16
 const WK = 3.5 * 16
+const AREA_W = 2 * 16
+const WEEK_COL_1 = 3 // grid column of the first Week
 const BAND_CHAR = 6.6 // ≈ Fira Code advance (px) at the band font size
 
 const weeks = computed(() => props.plan.weeks)
 
+// The gutter collapses to zero width when nothing is grouped, so an Area-less
+// plan spends no room on it. The column always exists, so column math is
+// unconditional — only its width changes.
+const hasAreas = computed(() => props.plan.bands.some((b) => b.area != null))
+const rootStyle = computed(() => ({ "--area-w": hasAreas.value ? "2rem" : "0rem" }))
+const leadW = computed(() => (hasAreas.value ? AREA_W : 0) + NAME_W)
+
 const gridStyle = computed(() => ({
-  gridTemplateColumns: `var(--name-w) repeat(${weeks.value.length}, var(--wk)) minmax(9rem, 1fr)`,
+  gridTemplateColumns: `var(--area-w) var(--name-w) repeat(${weeks.value.length}, var(--wk)) minmax(9rem, 1fr)`,
 }))
 
 function tone(row: FeatureRow): Tone {
@@ -128,12 +139,12 @@ function colClass(i: number): string {
 // labels in nearby weeks never overlap. `col` is the 1-based grid column.
 const milestoneFlags = computed(() => {
   const items = props.plan.milestones
-    .map((m) => ({ m, col: weeks.value.indexOf(m.week) + 2 }))
-    .filter((x) => x.col >= 2)
+    .map((m) => ({ m, col: weeks.value.indexOf(m.week) + WEEK_COL_1 }))
+    .filter((x) => x.col >= WEEK_COL_1)
     .sort((a, b) => a.col - b.col)
   const rowEnd: number[] = [] // px x-extent of the last flag placed in each row
   return items.map((x) => {
-    const startX = NAME_W + (x.col - 2) * WK
+    const startX = leadW.value + (x.col - WEEK_COL_1) * WK
     const text = `◆ ${x.m.name}` + (x.m.unmet.length ? ` · ${x.m.unmet.length} unmet` : "")
     const width = text.length * BAND_CHAR + 14
     let row = 0
@@ -147,13 +158,16 @@ const milestoneFlags = computed(() => {
 })
 const bandRows = computed(() => milestoneFlags.value.reduce((n, f) => Math.max(n, f.row), 0))
 const bandStyle = computed(() => ({
-  gridTemplateColumns: `var(--name-w) repeat(${weeks.value.length}, var(--wk))`,
+  gridTemplateColumns: `var(--area-w) var(--name-w) repeat(${weeks.value.length}, var(--wk))`,
   gridTemplateRows: `repeat(${bandRows.value}, 1.15rem)`,
 }))
 </script>
 
 <template>
-  <div class="macroplan overflow-auto rounded-box border border-base-300 bg-base-100">
+  <div
+    class="macroplan overflow-auto rounded-box border border-base-300 bg-base-100"
+    :style="rootStyle"
+  >
     <!-- milestone band: stacked label flags with leader lines down to the axis -->
     <div v-if="milestoneFlags.length" class="ms-band" :style="bandStyle">
       <template v-for="f in milestoneFlags" :key="f.name + '-' + f.col">
@@ -167,6 +181,7 @@ const bandStyle = computed(() => ({
 
     <div class="plan-grid" :style="gridStyle">
       <!-- header row -->
+      <div class="hcell areacorner"></div>
       <div class="hcell corner">Feature</div>
       <div
         v-for="(c, ci) in cols"
@@ -178,6 +193,17 @@ const bandStyle = computed(() => ({
         <span v-if="c.isNow" class="badge-now">now</span>
       </div>
       <div class="hcell learnhead">Learning / Status</div>
+
+      <!-- Area gutter: one cell per band, spanning its Features. Explicitly
+           placed, so the auto-flowed feature rows below skip column 1. -->
+      <div
+        v-for="b in plan.bands"
+        :key="'band-' + b.start"
+        class="areacell"
+        :style="{ gridRow: `${b.start + 2} / span ${b.span}` }"
+      >
+        <span v-if="b.area" class="arealabel" :title="b.area">{{ b.area }}</span>
+      </div>
 
       <!-- feature rows -->
       <template v-for="(row, ri) in plan.rows" :key="row.name">
@@ -226,6 +252,7 @@ const bandStyle = computed(() => ({
 .macroplan {
   --name-w: 16rem;
   --wk: 3.5rem;
+  --area-w: 0rem; /* set inline: 2rem once any Feature has an Area */
 }
 .plan-grid {
   display: grid;
@@ -278,7 +305,7 @@ const bandStyle = computed(() => ({
   white-space: nowrap;
 }
 .corner {
-  left: 0;
+  left: var(--area-w);
   z-index: 30;
   text-align: left;
   overflow: hidden;
@@ -306,9 +333,41 @@ const bandStyle = computed(() => ({
   text-align: left;
 }
 
-.namecell {
+/* ── Area gutter ──────────────────────────────────────────────────── */
+.areacell {
+  grid-column: 1;
   position: sticky;
   left: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--color-base-200);
+  border-right: 1px solid var(--color-base-300);
+}
+/* Reads bottom-to-top, like a chart's Y-axis label — the one dimension a band
+   has room in. Truncates (with a title tooltip) for a single-Feature band. */
+.arealabel {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  max-height: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: color-mix(in oklab, var(--color-base-content) 70%, var(--color-base-100));
+}
+.areacorner {
+  left: 0;
+  z-index: 30;
+}
+
+.namecell {
+  position: sticky;
+  left: var(--area-w);
   z-index: 10;
   background: var(--color-base-100);
   display: flex;
