@@ -96,6 +96,15 @@ describe("F8 — Area gutter", () => {
     expect(col(withArea)).toContain("grid-column: 5") // gutter, name, then 3 weeks in
   })
 
+  it("bands the default sample plan into Platform and Product", () => {
+    const cells = mountGrid().findAll(".areacell")
+    expect(cells.map((c) => c.text())).toEqual(["Platform", "Product"])
+    expect(cells.map((c) => c.attributes("style"))).toEqual([
+      expect.stringContaining("grid-row: 2 / span 2"),
+      expect.stringContaining("grid-row: 4 / span 3"),
+    ])
+  })
+
   it("truncates a long label with a tooltip rather than overflowing a 1-row band", () => {
     const label = grid(feat("A", "Change management")).find(".arealabel")
     expect(label.attributes("title")).toBe("Change management")

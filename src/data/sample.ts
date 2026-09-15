@@ -16,8 +16,12 @@ end = 2026-08-03
 # Re-estimates, an optional Delivery, and an optional Learning / Status.
 # Dates are TOML date literals; any day is snapped to that week's Monday.
 
+# \`area\` groups Features into labelled bands. Optional — omit it and the
+# Feature joins the unlabelled band at the top.
+
 [[feature]]
 name = "Auth"
+area = "Platform"
 start = 2026-06-01
 original = 2026-06-15
 delivered = 2026-06-15          # on time → ◉
@@ -25,6 +29,7 @@ learning = "Spiking the OAuth flow first paid off — do discovery spikes earlie
 
 [[feature]]
 name = "Payments"
+area = "Platform"
 start = 2026-06-01
 original = 2026-06-15           # ◯ baseline
 reestimates = [2026-06-29, 2026-07-13]   # two re-estimates → △ △
@@ -33,6 +38,7 @@ learning = "Vendor lead time was the real constraint — derisk vendors up front
 
 [[feature]]
 name = "Dashboard"
+area = "Product"
 start = 2026-06-01
 original = 2026-06-08           # already past 'now' and undelivered → overdue
 status = "off-track"
@@ -40,6 +46,7 @@ note = "No recovery plan yet — needs an owner."
 
 [[feature]]
 name = "Search"
+area = "Product"
 start = 2026-06-08
 original = 2026-06-22
 reestimates = [2026-07-06]      # re-estimated once, still in flight → △
@@ -48,6 +55,7 @@ note = "Third-party search API is flaky; spike a fallback."
 
 [[feature]]
 name = "Notifications"
+area = "Product"
 start = 2026-06-22
 original = 2026-07-06
 status = "on-track"
