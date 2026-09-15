@@ -62,10 +62,13 @@ promised, every slip, and when it shipped.
 | `learning`    | no       | string                                       | —       | A post-delivery takeaway.                                                                                                                  |
 | `status`      | no       | `"on-track"` \| `"at-risk"` \| `"off-track"` | —       | In-flight confidence. Meaningful only while undelivered.                                                                                   |
 | `note`        | no       | string                                       | —       | A short note accompanying `status`.                                                                                                        |
+| `area`        | no       | non-empty string                             | —       | The **Area** this feature belongs to — a named group of features sharing a discipline or owner. Absent → ungrouped.                        |
 
 **Constraint — unique names:** feature `name` values MUST be unique within a
 plan. Because milestone `requires` resolves by name, a duplicate would make a
-requirement ambiguous. Conforming consumers reject duplicates.
+requirement ambiguous. Conforming consumers reject duplicates. An `area` does
+**not** scope names — uniqueness is plan-wide, so `requires` keeps naming
+features across areas.
 
 ## `[[milestone]]`
 
@@ -99,6 +102,29 @@ reestimates = [2026-06-29, 2026-07-13]
   (a Wednesday) and `2026-06-15` (that Monday) denote the **same week**. Every
   conforming renderer MUST apply this snapping, or dates land in the wrong column.
 
+### Areas
+
+An **Area** groups features into a labelled band. A feature belongs to **at
+most one** Area — it is a container, not a tag
+([ADR-0003](adr/0003-area-is-a-container-not-a-tag.md)).
+
+```toml
+[[feature]]
+name = "Manager briefing pack"
+area = "Communication"
+```
+
+- **Optional.** A file with no `area` anywhere is a valid, ungrouped plan — the
+  key was added after version `1` and does **not** bump the version, because a
+  new optional field is not a breaking change.
+- **Non-empty.** `area = ""` is rejected. Omit the key to say "ungrouped";
+  there is deliberately only one way to express that.
+- **Matched case-insensitively, after trimming surrounding whitespace.**
+  `"training"`, `"Training"` and `" Training "` are the **same** Area.
+- **Labelled by first spelling.** When spellings differ, the band is labelled
+  with the first one that appears in the file — a renderer never invents a
+  capitalization the author didn't type.
+
 ### Status
 
 The enum `on-track` \| `at-risk` \| `off-track`. No other value is valid. Lateness
@@ -123,14 +149,21 @@ a part of the format as the fields:
    delivered bar ends at its delivery. An **overdue** feature (undelivered, and
    already past its furthest estimate relative to "now") keeps running to the
    current week.
-4. **Plan span.** The rendered week range runs from the earliest to the latest
+4. **Area banding.** Features are grouped into contiguous bands, one per Area.
+   Bands appear in order of **first appearance** of the Area in the file;
+   within a band, features keep their authored order. Features with **no**
+   `area` form a single unlabelled band rendered **first**. Grouping therefore
+   reorders rows relative to the file — a plan with no Areas is the degenerate
+   case where every feature sits in that leading band and nothing moves.
+5. **Plan span.** The rendered week range runs from the earliest to the latest
    week among all features' markers and all milestones. Optional `start`/`end`
    only widen this range with lead-in / trailing weeks; a marker outside them is
-   never clipped.
-5. **Milestone met/unmet.** A required feature is **unmet** at a milestone if it
+   never clipped. Areas do **not** affect the span.
+6. **Milestone met/unmet.** A required feature is **unmet** at a milestone if it
    is undelivered, delivered _after_ the milestone `week`, or names no existing
-   feature.
-6. **"Now".** The current week (Monday of today) drives overdue extension and the
+   feature. Areas do not scope this: a milestone may require features from any
+   number of Areas.
+7. **"Now".** The current week (Monday of today) drives overdue extension and the
    "now" line. It is contextual, not stored in the file.
 
 ## Notes for implementers
@@ -147,8 +180,10 @@ a part of the format as the fields:
 ## See also
 
 - [CONTEXT.md](../CONTEXT.md) — the ubiquitous language (Feature, Original
-  Estimate, Re-estimate, Delivery, Milestone, Week, Status, Learning).
+  Estimate, Re-estimate, Delivery, Milestone, Area, Week, Status, Learning).
 - [ADR-0001](adr/0001-original-estimate-as-baseline.md) — why lateness is judged
   against the Original Estimate.
 - [ADR-0002](adr/0002-local-first-no-backend.md) — why the `.toml` file is the
   portable source of truth.
+- [ADR-0003](adr/0003-area-is-a-container-not-a-tag.md) — why a feature belongs
+  to at most one Area.

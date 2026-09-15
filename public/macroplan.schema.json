@@ -80,6 +80,11 @@
         "note": {
           "description": "A short note accompanying `status`.",
           "type": "string"
+        },
+        "area": {
+          "description": "The Area this feature belongs to — a named group sharing a discipline or owner. Omit for ungrouped. Matched case-insensitively after trimming; a feature belongs to at most one Area (ADR-0003).",
+          "type": "string",
+          "minLength": 1
         }
       }
     },

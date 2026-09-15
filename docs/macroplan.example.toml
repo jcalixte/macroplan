@@ -16,9 +16,14 @@ end = 2026-08-03
 
 # Dates are TOML date literals. Any day snaps to that week's Monday.
 
+# `area` groups features into bands. A feature belongs to at most one Area
+# (ADR-0003); Areas are implicit — the set of values used, ordered by first
+# appearance. Matched case-insensitively after trimming.
+#
 # On-time delivery: delivered on/before the Original Estimate → ◉ (subsumes ◯).
 [[feature]]
 name = "Auth"
+area = "Platform"
 start = 2026-06-01
 original = 2026-06-15
 delivered = 2026-06-15
@@ -29,6 +34,7 @@ learning = "Spiking the OAuth flow first paid off — do discovery spikes earlie
 # never move the goalpost (ADR-0001).
 [[feature]]
 name = "Payments"
+area = "Platform"
 start = 2026-06-01
 original = 2026-06-15
 reestimates = [2026-06-29, 2026-07-13]
@@ -39,6 +45,7 @@ learning = "Vendor lead time was the real constraint — derisk vendors up front
 # bar runs to "now". `status` + `note` express confidence while it's open.
 [[feature]]
 name = "Dashboard"
+area = "Product"
 start = 2026-06-01
 original = 2026-06-08
 status = "off-track"
@@ -47,6 +54,7 @@ note = "No recovery plan yet — needs an owner."
 # In-flight, re-estimated once: ◯ + △, still open.
 [[feature]]
 name = "Search"
+area = "product" # same Area as Dashboard — matching ignores case
 start = 2026-06-08
 original = 2026-06-22
 reestimates = [2026-07-06]
@@ -54,7 +62,7 @@ status = "at-risk"
 note = "Third-party search API is flaky; spike a fallback."
 
 # In-flight, on track: the minimal feature — only the three required fields
-# plus a status.
+# plus a status. No `area`, so it joins the unlabelled band rendered first.
 [[feature]]
 name = "Notifications"
 start = 2026-06-22
