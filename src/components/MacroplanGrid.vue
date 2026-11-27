@@ -66,7 +66,7 @@ function hiddenTrouble(row: FeatureRow) {
   return t && { ...t, label: `${t.count} ${t.level.replace("-", " ")} below` }
 }
 
-// Each Status / Problem / Countermeasure cell opens a popover with its full
+// Each Status / Problem / Countermeasure / Learning cell opens a popover with its full
 // text, anchored to the cell. The ids are per grid instance, not global.
 const uid = useId()
 const popId = (ri: number) => `${uid}-status-${ri}`
@@ -284,7 +284,7 @@ const bandStyle = computed(() => ({
         <span class="wklabel">{{ c.label }}</span>
         <span v-if="c.isNow" class="badge-now">now</span>
       </div>
-      <div class="hcell learnhead">Status / Problem / Countermeasure</div>
+      <div class="hcell learnhead">Status / Problem / Countermeasure / Learning</div>
 
       <!-- Area gutter: one cell per band, spanning its Features. Explicitly
            placed, so the auto-flowed feature rows below skip column 1. -->

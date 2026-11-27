@@ -22,7 +22,7 @@ Dashboard              ┣━━━━━◯                             🔴  n
 ## How it works
 
 - Author a plan as **TOML** in an in-app split editor (re-rendered on every keystroke).
-- The view is a **CSS-Grid** week × feature layout with the symbol vocabulary, real status colors (🟢/🟠/🔴), a "now" line, sticky feature-name and week-axis panes, and a trailing **Status / Problem / Countermeasure** column: a chip says which kind of text follows, and an in-trouble Feature reads `Problem → Countermeasure`.
+- The view is a **CSS-Grid** week × feature layout with the symbol vocabulary, real status colors (🟢/🟠/🔴), a "now" line, sticky feature-name and week-axis panes, and a trailing **Status / Problem / Countermeasure / Learning** column: a chip says which kind of text follows, an in-trouble Feature reads `Problem → Countermeasure`, and a delivered one shows its Learning.
 - On-time vs. late is **derived** by the app against the Original Estimate — you never type "late".
 - **Milestones** are vertical lines tied to an explicit list of required features.
 - Group features into **Areas** (`area = "Training"`) — each becomes a labelled band with a rotated label in a left gutter, adding no rows and leaving the date lines unbroken. A plan with no Areas renders exactly as before.

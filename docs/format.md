@@ -317,7 +317,7 @@ a part of the format as the fields:
 11. **Folding.** A renderer may fold a parent's subtree. Fold state is a view
     preference and is never stored in the file; folding never changes the week
     span.
-12. **Status / Problem / Countermeasure.** Every row says what kind of text it shows. A
+12. **Status / Problem / Countermeasure / Learning.** Every row says what kind of text it shows. A
     delivered feature shows its `learning` behind a _learned_ label, or just
     "delivered on time" / "delivered late". An undelivered feature always
     shows its Status word ("in flight" when absent). An at-risk or off-track

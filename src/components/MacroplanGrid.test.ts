@@ -40,8 +40,10 @@ describe("MacroplanGrid renders the sample plan", () => {
     expect(w.text()).toContain("MVP go-live")
   })
 
-  it("heads the trailing column Status / Problem / Countermeasure", () => {
-    expect(mountGrid().find(".learnhead").text()).toBe("Status / Problem / Countermeasure")
+  it("heads the trailing column Status / Problem / Countermeasure / Learning", () => {
+    expect(mountGrid().find(".learnhead").text()).toBe(
+      "Status / Problem / Countermeasure / Learning",
+    )
   })
 
   it("labels every trailing cell with a chip saying which kind of text follows", () => {
