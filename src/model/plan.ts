@@ -359,6 +359,35 @@ export function visibleRows(
   return { rows, bands }
 }
 
+export interface TroubleBelow {
+  level: "at-risk" | "off-track" // the worst Status among the descendants
+  count: number // descendants in trouble
+}
+
+/**
+ * For each parent, its in-flight descendants that are at-risk or off-track.
+ * Status never rolls up (a parent's own Status is authored), so this is only a
+ * pointer: a folded parent uses it to say trouble is hidden beneath it.
+ * Rows come parent-first, depth-first, so a row's descendants are the rows
+ * right after it that sit deeper.
+ */
+export function troubleBelow(rows: readonly FeatureRow[]): Map<string, TroubleBelow> {
+  const out = new Map<string, TroubleBelow>()
+  rows.forEach((row, i) => {
+    if (row.childCount === 0) return
+    let count = 0
+    let offTrack = false
+    for (let j = i + 1; j < rows.length && rows[j].depth > row.depth; j++) {
+      const d = rows[j]
+      if (d.delivered || (d.status !== "at-risk" && d.status !== "off-track")) continue
+      count++
+      if (d.status === "off-track") offTrack = true
+    }
+    if (count > 0) out.set(row.name, { level: offTrack ? "off-track" : "at-risk", count })
+  })
+  return out
+}
+
 export interface PlanTally {
   features: number
   onTime: number

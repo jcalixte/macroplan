@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, useId } from "vue"
 import type { Plan, FeatureRow, MarkerKind } from "../model/types"
-import { visibleRows } from "../model/plan"
+import { troubleBelow, visibleRows } from "../model/plan"
 import { weekLabel, type WeekId } from "../model/week"
 
 const props = withDefaults(defineProps<{ plan: Plan; expanded?: ReadonlySet<string> }>(), {
@@ -102,6 +102,17 @@ function inTrouble(row: FeatureRow): boolean {
 function trouble(row: FeatureRow): "at-risk" | "off-track" | null {
   if (row.delivered) return null
   return row.status === "at-risk" || row.status === "off-track" ? row.status : null
+}
+
+// Status never rolls up, but a folded parent must not hide trouble: it carries
+// a dot in the worst descendant's colour. Unfolded, the children speak for
+// themselves.
+const below = computed(() => troubleBelow(props.plan.rows))
+
+function hiddenTrouble(row: FeatureRow) {
+  if (props.expanded.has(row.name)) return undefined
+  const t = below.value.get(row.name)
+  return t && { ...t, label: `${t.count} ${t.level.replace("-", " ")} below` }
 }
 
 function chipClass(row: FeatureRow): string {
@@ -325,6 +336,14 @@ const bandStyle = computed(() => ({
           <span class="truncate" :title="row.name">{{ row.name }}</span>
           <span v-if="row.childCount" class="childcount">({{ row.childCount }})</span>
           <span
+            v-if="hiddenTrouble(row)"
+            class="below"
+            :class="`below-${hiddenTrouble(row)!.level}`"
+            role="img"
+            :title="hiddenTrouble(row)!.label"
+            :aria-label="hiddenTrouble(row)!.label"
+          ></span>
+          <span
             v-if="row.outOfOrder"
             class="out-of-order text-ink-warning"
             title="Delivered before an earlier Feature in its chain"
@@ -417,6 +436,9 @@ const bandStyle = computed(() => ({
     <span v-if="plan.breaks.length"><b class="off-swatch"></b> break</span>
     <span><b class="chip chip-fill chip-off-track">off track</b> no countermeasure</span>
     <span><b class="chip chip-fill chip-at-risk">at risk</b> countermeasure set</span>
+    <span v-if="plan.rows.some((r) => r.childCount)"
+      ><b class="below below-off-track legend-below"></b> trouble inside a folded feature</span
+    >
     <span><i class="legend-problem">problem</i> <b>→</b> countermeasure</span>
   </div>
 </template>
@@ -636,6 +658,20 @@ const bandStyle = computed(() => ({
   margin-left: 0.3rem;
   font-size: 0.75rem;
   color: var(--color-ink-muted);
+}
+.below {
+  display: inline-block;
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: 0.4rem;
+  border-radius: 50%;
+}
+.below-off-track {
+  background: var(--color-ink-error);
+}
+.below-at-risk {
+  background: var(--color-ink-warning);
 }
 .out-of-order {
   flex: none;
@@ -933,6 +969,9 @@ const bandStyle = computed(() => ({
 }
 .legend b {
   font-weight: 700;
+}
+.legend-below {
+  margin: 0 0.3rem 0 0;
 }
 .dash-swatch {
   display: inline-block;

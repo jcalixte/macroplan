@@ -211,6 +211,26 @@ describe("MacroplanGrid — nested Features (F10, F11)", () => {
     expect(mountNested().find(".areacell").attributes("style")).toContain("grid-row: 2 / span 2")
   })
 
+  it("flags a folded parent whose children are in trouble, without lighting its row", () => {
+    const troubled = buildPlan(
+      parseMacroplan(nested.replace("weeks = 3\n", 'weeks = 3\nstatus = "off-track"\n')),
+      "2026-06-17",
+    )
+    const w = mount(MacroplanGrid, { props: { plan: troubled } })
+    const flag = w.find(".namecell .below")
+    expect(flag.classes()).toContain("below-off-track")
+    expect(flag.attributes("title")).toBe("1 off track below")
+    expect(w.findAll(".plan-grid > .row")[1].classes()).not.toContain("row-off-track")
+    const open = mount(MacroplanGrid, {
+      props: { plan: troubled, expanded: new Set(["Payments"]) },
+    })
+    expect(open.find(".namecell .below").exists()).toBe(false)
+  })
+
+  it("puts no flag on a folded parent whose children are fine", () => {
+    expect(mountNested().find(".namecell .below").exists()).toBe(false)
+  })
+
   it("draws the Forecast ◌ and a dashed bar up to it", () => {
     const w = mountNested(["Payments"])
     expect(w.text()).toContain("◌")

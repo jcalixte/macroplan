@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { parseMacroplan, PlanParseError } from "./parse"
-import { buildPlan, visibleRows } from "./plan"
+import { buildPlan, troubleBelow, visibleRows } from "./plan"
 import type { FeatureRow, Plan } from "./types"
 
 const TODAY = "2026-06-17" // week of Mon 2026-06-15
@@ -198,6 +198,38 @@ describe("F11 — visibleRows folds parents", () => {
   it("folding never changes the week axis", () => {
     expect(plan.weeks[0]).toBe("2026-06-01")
     expect(plan.weeks.at(-1)).toBe("2026-06-29")
+  })
+})
+
+describe("troubleBelow — a parent's descendants in trouble", () => {
+  const tree = (a: string, b: string, c = "") =>
+    build(
+      `[[feature]]\nname = "Checkout"\n` +
+        `[[feature]]\nname = "Discovery"\nparent = "Checkout"\nstart = 2026-06-01\nweeks = 2\n${a}\n` +
+        `[[feature]]\nname = "Payments"\nparent = "Checkout"\n` +
+        `[[feature]]\nname = "Vendor contract"\nparent = "Payments"\nweeks = 2\n${b}\n` +
+        `[[feature]]\nname = "Ops"\nstart = 2026-06-01\noriginal = 2026-06-08\n${c}\n`,
+    )
+  const offTrack = 'status = "off-track"'
+  const atRisk = 'status = "at-risk"\ncountermeasure = "Fix it"'
+
+  it("reports the worst Status and the count, at every ancestor", () => {
+    const t = troubleBelow(tree(atRisk, offTrack).rows)
+    expect(t.get("Checkout")).toEqual({ level: "off-track", count: 2 })
+    expect(t.get("Payments")).toEqual({ level: "off-track", count: 1 })
+  })
+
+  it("leaves out a parent whose descendants are all fine, and every leaf", () => {
+    const t = troubleBelow(tree('status = "on-track"', "", offTrack).rows)
+    expect(t.size).toBe(0)
+  })
+
+  it("ignores a parent's own Status — only its descendants count", () => {
+    const plan = build(
+      `[[feature]]\nname = "Payments"\nstatus = "off-track"\n` +
+        `[[feature]]\nname = "Vendor contract"\nparent = "Payments"\nstart = 2026-06-01\nweeks = 2\n`,
+    )
+    expect(troubleBelow(plan.rows).size).toBe(0)
   })
 })
 
