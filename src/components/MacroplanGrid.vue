@@ -136,42 +136,81 @@ const matrix = computed<Cell[][]>(() =>
   ),
 )
 
-// Per-week column metadata for the header + the now / milestone column rules.
+/** The unavailable period covering a week, if any — the first one authored wins. */
+function offAt(w: WeekId) {
+  return props.plan.unavailable.find((u) => w >= u.from && w <= u.to)
+}
+
+// Per-week column metadata for the header + the now / milestone / off column rules.
 const cols = computed(() =>
   weeks.value.map((w) => ({
     w,
     label: weekLabel(w),
     isNow: props.plan.nowInRange && w === props.plan.nowWeek,
     isMilestone: props.plan.milestones.some((m) => m.week === w),
+    off: offAt(w)?.name,
   })),
 )
 
-function colClass(i: number): string {
+// Hatching is a background image and the now tint a background colour, so a
+// week that is both "now" and off shows both.
+function colClass(i: number): string[] {
   const c = cols.value[i]
-  if (c.isNow) return "col-now"
-  if (c.isMilestone) return "col-ms"
-  return ""
+  const cls: string[] = []
+  if (c.isNow) cls.push("col-now")
+  else if (c.isMilestone) cls.push("col-ms")
+  if (c.off != null) cls.push("col-off")
+  return cls
 }
 
-// Milestone label flags above the axis, greedily stacked onto extra rows so
-// labels in nearby weeks never overlap. `col` is the 1-based grid column.
+interface FlagItem {
+  kind: "milestone" | "off"
+  name: string
+  unmet: string[]
+  col: number // 1-based grid column
+  text: string
+  title: string
+}
+
+// Label flags above the axis — milestones and unavailable periods — greedily
+// stacked onto extra rows so labels in nearby weeks never overlap.
 const milestoneFlags = computed(() => {
-  const items = props.plan.milestones
-    .map((m) => ({ m, col: weeks.value.indexOf(m.week) + WEEK_COL_1 }))
-    .filter((x) => x.col >= WEEK_COL_1)
-    .sort((a, b) => a.col - b.col)
+  const ms: FlagItem[] = props.plan.milestones.map((m) => ({
+    kind: "milestone",
+    name: m.name,
+    unmet: m.unmet,
+    col: weeks.value.indexOf(m.week) + WEEK_COL_1,
+    text: `◆ ${m.name}` + (m.unmet.length ? ` · ${m.unmet.length} unmet` : ""),
+    title: m.unmet.length
+      ? `${m.name} — unmet: ${m.unmet.join(", ")}`
+      : `${m.name} — all required features met`,
+  }))
+  // An off period is flagged at its first visible week, so one that began
+  // before the plan's span is still labelled.
+  const off: FlagItem[] = props.plan.unavailable.flatMap((u) => {
+    const i = weeks.value.findIndex((w) => w >= u.from && w <= u.to)
+    if (i < 0) return []
+    const span = u.from === u.to ? weekLabel(u.from) : `${weekLabel(u.from)} – ${weekLabel(u.to)}`
+    return [
+      {
+        kind: "off" as const,
+        name: u.name,
+        unmet: [],
+        col: i + WEEK_COL_1,
+        text: `▨ ${u.name}`,
+        title: `${u.name} — unavailable ${span}`,
+      },
+    ]
+  })
+  const items = [...ms, ...off].filter((x) => x.col >= WEEK_COL_1).sort((a, b) => a.col - b.col)
   const rowEnd: number[] = [] // px x-extent of the last flag placed in each row
   return items.map((x) => {
     const startX = leadW.value + (x.col - WEEK_COL_1) * WK
-    const text = `◆ ${x.m.name}` + (x.m.unmet.length ? ` · ${x.m.unmet.length} unmet` : "")
-    const width = text.length * BAND_CHAR + 14
+    const width = x.text.length * BAND_CHAR + 14
     let row = 0
     while (row < rowEnd.length && rowEnd[row] > startX - 6) row++
     rowEnd[row] = startX + width
-    const title = x.m.unmet.length
-      ? `${x.m.name} — unmet: ${x.m.unmet.join(", ")}`
-      : `${x.m.name} — all required features met`
-    return { name: x.m.name, unmet: x.m.unmet, col: x.col, row: row + 1, title }
+    return { ...x, row: row + 1 }
   })
 })
 const bandRows = computed(() => milestoneFlags.value.reduce((n, f) => Math.max(n, f.row), 0))
@@ -188,10 +227,20 @@ const bandStyle = computed(() => ({
   >
     <!-- milestone band: stacked label flags with leader lines down to the axis -->
     <div v-if="milestoneFlags.length" class="ms-band" :style="bandStyle">
-      <template v-for="f in milestoneFlags" :key="f.name + '-' + f.col">
-        <i class="ms-lead" :style="{ gridColumn: f.col, gridRow: f.row + ' / -1' }" />
-        <span class="ms-flag" :style="{ gridColumn: f.col, gridRow: f.row }" :title="f.title">
-          <span class="ms-dia">◆</span> {{ f.name
+      <template v-for="f in milestoneFlags" :key="f.kind + '-' + f.name + '-' + f.col">
+        <i
+          v-if="f.kind === 'milestone'"
+          class="ms-lead"
+          :style="{ gridColumn: f.col, gridRow: f.row + ' / -1' }"
+        />
+        <span
+          class="ms-flag"
+          :class="{ 'off-flag': f.kind === 'off' }"
+          :style="{ gridColumn: f.col, gridRow: f.row }"
+          :title="f.title"
+        >
+          <span v-if="f.kind === 'off'" class="off-icon">▨</span>
+          <span v-else class="ms-dia">◆</span> {{ f.name
           }}<span v-if="f.unmet.length" class="ms-unmet"> · {{ f.unmet.length }} unmet</span>
         </span>
       </template>
@@ -206,6 +255,7 @@ const bandStyle = computed(() => ({
         :key="'h-' + c.w"
         class="hcell wkhead"
         :class="[colClass(ci), { 'now-head': c.isNow }]"
+        :title="c.off ? `${c.off} — unavailable` : undefined"
       >
         <span class="wklabel">{{ c.label }}</span>
         <span v-if="c.isNow" class="badge-now">now</span>
@@ -289,6 +339,7 @@ const bandStyle = computed(() => ({
     <span><b>┣━</b> feature bar</span>
     <span><b class="ms-dia">◆</b> milestone</span>
     <span><b class="now-swatch"></b> today</span>
+    <span v-if="plan.unavailable.length"><b class="off-swatch"></b> unavailable</span>
   </div>
 </template>
 
@@ -544,6 +595,23 @@ const bandStyle = computed(() => ({
   border-left: 2px dashed color-mix(in oklab, var(--color-base-content) 30%, var(--color-base-100));
 }
 
+/* Unavailable weeks: hatched, so they still read when they are also "now". */
+.cell.col-off,
+.hcell.col-off {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--color-base-content) 9%, transparent) 0 2px,
+    transparent 2px 6px
+  );
+}
+.off-flag {
+  color: color-mix(in oklab, var(--color-base-content) 65%, var(--color-base-100));
+  font-weight: 500;
+}
+.off-icon {
+  color: color-mix(in oklab, var(--color-base-content) 45%, var(--color-base-100));
+}
+
 .legend {
   margin-top: 0.75rem;
   display: flex;
@@ -572,5 +640,18 @@ const bandStyle = computed(() => ({
   border-radius: 0.15rem;
   background: color-mix(in oklab, var(--color-base-content) 7%, var(--color-base-100));
   border: 1px solid color-mix(in oklab, var(--color-base-content) 22%, var(--color-base-100));
+}
+.off-swatch {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  vertical-align: -0.1rem;
+  border-radius: 0.15rem;
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 22%, var(--color-base-100));
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--color-base-content) 18%, transparent) 0 2px,
+    transparent 2px 5px
+  );
 }
 </style>

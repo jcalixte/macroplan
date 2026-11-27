@@ -155,3 +155,38 @@ describe("MacroplanGrid — nested Features (F10, F11)", () => {
     expect(w.findAll(".bar.dashed").length).toBeGreaterThan(0)
   })
 })
+
+describe("MacroplanGrid — unavailable weeks", () => {
+  const source = `[[feature]]
+name = "X"
+start = 2026-06-01
+original = 2026-06-29
+
+[[unavailable]]
+name = "Offsite"
+from = 2026-06-15
+to = 2026-06-22
+`
+  const offPlan = buildPlan(parseMacroplan(source), "2026-06-17")
+  const w = mount(MacroplanGrid, { props: { plan: offPlan } })
+
+  it("hatches every cell of the unavailable weeks, header included", () => {
+    expect(w.findAll(".hcell.col-off")).toHaveLength(2)
+    expect(w.findAll(".cell.col-off")).toHaveLength(2) // one row × two weeks
+  })
+
+  it("keeps the now tint on an unavailable week", () => {
+    expect(w.find(".cell.col-now.col-off").exists()).toBe(true)
+  })
+
+  it("labels the period once, above its first week, and lists it in the legend", () => {
+    const flags = w.findAll(".off-flag")
+    expect(flags).toHaveLength(1)
+    expect(flags[0].text()).toContain("Offsite")
+    expect(w.find(".legend").text()).toContain("unavailable")
+  })
+
+  it("shows no legend entry when the plan has no unavailable weeks", () => {
+    expect(mountGrid().find(".legend").text()).not.toContain("unavailable")
+  })
+})
