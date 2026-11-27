@@ -2,14 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://macroplan.apoena.dev/macroplan.schema.json",
   "title": "Macroplan",
-  "description": "A week-by-week delivery plan. Portable TOML format v2 — see docs/format.md. Validates the TOML-decoded structure; dates are TOML date literals, surfaced to JSON Schema as date-formatted strings.",
+  "description": "A week-by-week delivery plan. Portable TOML format v3 — see docs/format.md. Validates the TOML-decoded structure; dates are TOML date literals, surfaced to JSON Schema as date-formatted strings.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "macroplan_version": {
-      "description": "Format version. Omit for the current version (2). Version 2 adds nested Features (`parent`, `weeks`, `reestimate_weeks`); a plan without them is also a valid version 1 file. A consumer must reject a version newer than it understands.",
+      "description": "Format version. Omit for the current version (3). Version 3 replaces `note` with `problem` and `countermeasure` and checks them against `status` (ADR-0005); version 2 adds nested Features (`parent`, `weeks`, `reestimate_weeks`) to version 1. A consumer must reject a version newer than it understands.",
       "type": "integer",
-      "enum": [1, 2]
+      "enum": [1, 2, 3]
     },
     "title": {
       "description": "Display name of the plan. Defaults to \"Untitled Macroplan\" when absent.",
@@ -90,9 +90,20 @@
           "description": "In-flight confidence. Meaningful only while undelivered. Lateness is derived, never authored.",
           "enum": ["on-track", "at-risk", "off-track"]
         },
+        "problem": {
+          "description": "Why the feature is in trouble, stated as fact. Only on an at-risk or off-track feature (v3). A v1/v2 `note` is read as the Problem.",
+          "type": "string",
+          "minLength": 1
+        },
+        "countermeasure": {
+          "description": "The action that answers the Problem and brings the feature back on track. Required when `status` is at-risk, forbidden otherwise (v3). Ignored once delivered.",
+          "type": "string",
+          "minLength": 1
+        },
         "note": {
-          "description": "A short note accompanying `status`.",
-          "type": "string"
+          "description": "Format v1/v2 only: a free note, read as the Problem. Rejected in v3 — use `problem` and `countermeasure`.",
+          "type": "string",
+          "deprecated": true
         },
         "area": {
           "description": "The Area this feature belongs to — a named group sharing a discipline or owner. Omit for ungrouped. Matched case-insensitively after trimming; a feature belongs to at most one Area (ADR-0003). Top-level Features only — children sit in their parent's Area.",

@@ -22,7 +22,8 @@ export interface RawFeature {
   delivered?: string // yyyy-mm-dd
   learning?: string
   status?: StatusLevel
-  note?: string
+  problem?: string // why it is in trouble — at-risk / off-track only (v3; a v1/v2 `note`)
+  countermeasure?: string // what brings it back on track — at-risk only (v3)
   area?: string // the Area this Feature belongs to; absent → ungrouped
 }
 
@@ -71,7 +72,8 @@ export interface FeatureRow {
   delivered: boolean
   onTime: boolean | null // null while in-flight
   status?: StatusLevel
-  note?: string
+  problem?: string
+  countermeasure?: string
   learning?: string
   slipCount: number // number of Re-estimates
   area?: string // as authored on the top-level Feature — children inherit their root's

@@ -1,4 +1,4 @@
-# Macroplan TOML Format — v2
+# Macroplan TOML Format — v3
 
 The portable, tool-independent definition of a **Macroplan**: a week-by-week
 delivery plan that records what a team promised, every time an estimate slipped,
@@ -25,10 +25,12 @@ A file MAY declare the format version at the top level:
 macroplan_version = 1
 ```
 
-- **Optional.** An absent marker means the current version (`2`). Every existing
-  file therefore stays valid: version 2 is version 1 plus nested Features.
-- **Integer**, monotonically increasing. This document defines version **2**.
-  Version **1** is the same format without nested Features (`parent`, `weeks`,
+- **Optional.** An absent marker means the current version (`3`).
+- **Integer**, monotonically increasing. This document defines version **3**.
+  Version **2** is the same format with a single free `note` in place of
+  `problem` and `countermeasure`, and none of the Status rules that go with them
+  ([ADR-0005](adr/0005-problem-and-countermeasure-replace-note.md)). Version
+  **1** is version 2 without nested Features (`parent`, `weeks`,
   `reestimate_weeks`).
 - A consumer that understands version _N_ **MUST reject** a file declaring a
   version **greater than** _N_ (rather than silently mis-rendering it), and
@@ -37,18 +39,27 @@ macroplan_version = 1
   semantics below — a new optional field does not require a bump.
 
 Producers SHOULD emit `macroplan_version` so a file self-describes its target,
-and SHOULD emit the lowest version that describes the plan: `2` only when it
-uses `parent`, so v1-only tools keep reading every plan without children. A file
-that **declares** `1` and uses `parent` MUST be rejected.
+and SHOULD emit the lowest version that describes the plan: `3` only when it
+uses `problem` or `countermeasure`, `2` only when it uses `parent`, so older
+tools keep reading every plan they can. A file that **declares** `1` and uses
+`parent` MUST be rejected, and so must a file that declares `1` or `2` and uses
+`problem` or `countermeasure`.
+
+**Reading an older file.** A v1 or v2 `note` is read as the Feature's
+`problem`, whatever its Status, so no authored text is lost. The Status rules
+(see _Status_) apply to v3 files only: a v2 at-risk Feature without a
+Countermeasure is still valid. Because an absent marker means v3, an unmarked
+file that uses `note` is rejected; declaring `macroplan_version = 2` makes it
+valid again.
 
 ## Top-level fields
 
-| Key                 | Required | Type               | Default                | Meaning                                                                               |
-| ------------------- | -------- | ------------------ | ---------------------- | ------------------------------------------------------------------------------------- |
-| `macroplan_version` | no       | integer (`1`, `2`) | `2`                    | Format version (see above).                                                           |
-| `title`             | no       | string             | `"Untitled Macroplan"` | Display name of the plan.                                                             |
-| `start`             | no       | date               | auto-fit               | Left edge of the plan's week span. **Only extends** the span; never clips a feature.  |
-| `end`               | no       | date               | auto-fit               | Right edge of the plan's week span. **Only extends** the span; never clips a feature. |
+| Key                 | Required | Type              | Default                | Meaning                                                                               |
+| ------------------- | -------- | ----------------- | ---------------------- | ------------------------------------------------------------------------------------- |
+| `macroplan_version` | no       | integer (`1`–`3`) | `3`                    | Format version (see above).                                                           |
+| `title`             | no       | string            | `"Untitled Macroplan"` | Display name of the plan.                                                             |
+| `start`             | no       | date              | auto-fit               | Left edge of the plan's week span. **Only extends** the span; never clips a feature.  |
+| `end`               | no       | date              | auto-fit               | Right edge of the plan's week span. **Only extends** the span; never clips a feature. |
 
 Zero or more `[[feature]]`, `[[milestone]]` and `[[break]]` blocks follow.
 
@@ -69,7 +80,8 @@ promised, every slip, and when it shipped.
 | `delivered`        | no                    | date                                         | —       | The week the feature actually shipped. Absent → still in flight.                                                                           |
 | `learning`         | no                    | string                                       | —       | A post-delivery takeaway.                                                                                                                  |
 | `status`           | no                    | `"on-track"` \| `"at-risk"` \| `"off-track"` | —       | In-flight confidence. Meaningful only while undelivered.                                                                                   |
-| `note`             | no                    | string                                       | —       | A short note accompanying `status`.                                                                                                        |
+| `problem`          | see _Status_          | non-empty string                             | —       | Why the feature is in trouble, stated as fact. At-risk or off-track only (v3).                                                             |
+| `countermeasure`   | see _Status_          | non-empty string                             | —       | The action that answers the Problem. Required when at-risk; forbidden otherwise (v3).                                                      |
 | `area`             | no                    | non-empty string                             | —       | The **Area** this feature belongs to — a named group of features sharing a discipline or owner. Absent → ungrouped.                        |
 
 **Constraint — unique names:** feature `name` values MUST be unique within a
@@ -183,12 +195,12 @@ reestimate_weeks = [4]
 **Siblings form a chain, in file order**: each one starts the week after the
 one before it ends. Which keys a Feature may carry depends on where it sits:
 
-| Position                                 | Carries                                                       | Must not carry                                                                             |
-| ---------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Top-level, no children                   | `start`, `original` (required), `reestimates`, `delivered`    | `weeks`, `reestimate_weeks`                                                                |
-| Parent (has children), at any depth      | `status`, `note`, `learning`; `area` if top-level             | `start`, `original`, `reestimates`, `delivered`, `weeks`, `reestimate_weeks` — all derived |
-| Child without children                   | `weeks` (required), `reestimate_weeks`, `delivered`           | `original`, `reestimates`, `area`                                                          |
-| First leaf of a top-level parent's chain | as a child, plus `start` (required) — the anchor of the chain | —                                                                                          |
+| Position                                 | Carries                                                                | Must not carry                                                                             |
+| ---------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Top-level, no children                   | `start`, `original` (required), `reestimates`, `delivered`             | `weeks`, `reestimate_weeks`                                                                |
+| Parent (has children), at any depth      | `status`, `problem`, `countermeasure`, `learning`; `area` if top-level | `start`, `original`, `reestimates`, `delivered`, `weeks`, `reestimate_weeks` — all derived |
+| Child without children                   | `weeks` (required), `reestimate_weeks`, `delivered`                    | `original`, `reestimates`, `area`                                                          |
+| First leaf of a top-level parent's chain | as a child, plus `start` (required) — the anchor of the chain          | —                                                                                          |
 
 - **Exactly one `start` per tree**: on its first leaf in reading order. Every
   other date in the tree follows from the Durations, so a deliberate gap
@@ -205,6 +217,21 @@ one before it ends. Which keys a Feature may carry depends on where it sits:
 
 The enum `on-track` \| `at-risk` \| `off-track`. No other value is valid. Lateness
 is **derived, never authored** — there is deliberately no "late" status.
+
+In a v3 file, an undelivered Feature's texts must agree with its Status:
+
+| Status      | `problem` | `countermeasure` |
+| ----------- | --------- | ---------------- |
+| absent      | forbidden | forbidden        |
+| `on-track`  | forbidden | forbidden        |
+| `at-risk`   | optional  | **required**     |
+| `off-track` | optional  | forbidden        |
+
+An at-risk feature without a Countermeasure is off-track by definition, and an
+off-track one with a Countermeasure is at-risk, so both are rejected. A
+**delivered** feature (a parent: every child delivered) is exempt: its Status,
+Problem and Countermeasure are ignored, so recording a delivery never forces a
+cleanup.
 
 ## Render semantics (the contract a renderer must honor)
 
@@ -273,6 +300,12 @@ a part of the format as the fields:
 11. **Folding.** A renderer may fold a parent's subtree. Fold state is a view
     preference and is never stored in the file; folding never changes the week
     span.
+12. **Status / Learning.** Every row says what kind of text it shows. A
+    delivered feature shows its `learning` behind a _learned_ label, or just
+    "delivered on time" / "delivered late". An undelivered feature always
+    shows its Status word ("in flight" when absent). An at-risk or off-track
+    feature then reads `problem → countermeasure`: an off-track feature has
+    no Countermeasure, so its arrow is left dangling.
 
 ## Notes for implementers
 
@@ -290,8 +323,8 @@ a part of the format as the fields:
 ## See also
 
 - [CONTEXT.md](../CONTEXT.md) — the ubiquitous language (Feature, Original
-  Estimate, Re-estimate, Delivery, Milestone, Area, Week, Status, Learning,
-  Duration, Forecast).
+  Estimate, Re-estimate, Delivery, Milestone, Area, Week, Status, Problem,
+  Countermeasure, Learning, Duration, Forecast).
 - [ADR-0001](adr/0001-original-estimate-as-baseline.md) — why lateness is judged
   against the Original Estimate.
 - [ADR-0002](adr/0002-local-first-no-backend.md) — why the `.toml` file is the
@@ -300,3 +333,5 @@ a part of the format as the fields:
   to at most one Area.
 - [ADR-0004](adr/0004-nesting-by-parent-name.md) — why a child names its parent
   with a flat key rather than nested tables.
+- [ADR-0005](adr/0005-problem-and-countermeasure-replace-note.md) — why `note`
+  became a Problem and a Countermeasure, behind version 3.

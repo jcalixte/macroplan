@@ -34,6 +34,14 @@ const Area = v.pipe(
 )
 
 // A Duration: a whole number of Weeks, at least one.
+// A Problem or Countermeasure: free text, but never blank — an empty
+// `countermeasure` must not pass for one on an at-risk Feature.
+const Text = v.pipe(
+  v.string("must be a string"),
+  v.transform((t: string) => t.trim()),
+  v.nonEmpty("must not be empty — omit the key instead"),
+)
+
 const Weeks = v.pipe(
   v.number("must be a whole number of weeks"),
   v.integer("must be a whole number of weeks"),
@@ -53,7 +61,9 @@ const FeatureSchema = v.object({
   delivered: v.optional(Ymd),
   learning: v.optional(v.string()),
   status: v.optional(Status),
-  note: v.optional(v.string()),
+  problem: v.optional(Text),
+  countermeasure: v.optional(Text),
+  note: v.optional(v.string()), // v1/v2 only — read as the Problem (ADR-0005)
   area: v.optional(Area),
 })
 
@@ -75,7 +85,7 @@ const BreakSchema = v.object({
 /** The Macroplan format version this build understands (see docs/format.md).
  *  Files may declare `macroplan_version`; a newer version is rejected rather
  *  than silently mis-rendered against a schema we don't know. */
-export const FORMAT_VERSION = 2
+export const FORMAT_VERSION = 3
 
 /** Parse + validate a Macroplan TOML source into the raw model. */
 export function parseMacroplan(source: string): RawPlan {
@@ -89,12 +99,12 @@ export function parseMacroplan(source: string): RawPlan {
   const version = checkVersion(data.macroplan_version)
   rejectUnknownBlocks(data)
 
-  const features = asBlocks(data.feature, "feature").map((f, i) => {
-    const { reestimate_weeks, ...rest } = check(FeatureSchema, f, blockWhere("feature", f, i))
-    return { ...rest, reestimateWeeks: reestimate_weeks }
-  })
+  const features = asBlocks(data.feature, "feature").map((f, i) =>
+    readTexts(check(FeatureSchema, f, blockWhere("feature", f, i)), version ?? FORMAT_VERSION),
+  )
   requireUniqueFeatureNames(features)
   validateNesting(features, version)
+  validateTrouble(features, version ?? FORMAT_VERSION)
 
   return {
     title: data.title != null ? String(data.title) : "Untitled Macroplan",
@@ -112,6 +122,75 @@ export function parseMacroplan(source: string): RawPlan {
       }
       return period
     }),
+  }
+}
+
+type ParsedFeature = v.InferOutput<typeof FeatureSchema>
+
+/** Map a block onto the raw model, reconciling the in-flight texts with the
+ *  file's version (ADR-0005): v3 has `problem` and `countermeasure`; v1/v2
+ *  had a single `note`, which is read as the Problem. */
+function readTexts(f: ParsedFeature, version: number): RawFeature {
+  const { reestimate_weeks, note, ...rest } = f
+  const where = `feature "${f.name}"`
+  if (version < 3) {
+    for (const key of ["problem", "countermeasure"] as const) {
+      if (f[key] != null) {
+        throw new PlanParseError(
+          `${where}: \`${key}\` needs macroplan_version = 3 — raise the version or remove the marker`,
+        )
+      }
+    }
+    const problem = note?.trim() || undefined
+    return { ...rest, problem, reestimateWeeks: reestimate_weeks }
+  }
+  if (note != null) {
+    throw new PlanParseError(
+      `${where}: \`note\` was replaced in macroplan_version 3 — write the \`problem\` ` +
+        `(and a \`countermeasure\` when at-risk), or declare macroplan_version = 2`,
+    )
+  }
+  return { ...rest, reestimateWeeks: reestimate_weeks }
+}
+
+/**
+ * In a v3 file the texts must agree with the Status they belong to (CONTEXT.md,
+ * Status): at-risk means in trouble *with* a Countermeasure, off-track means
+ * *without* one, and on-track carries neither text. A delivered Feature has
+ * dropped all three, so it is not checked — recording a Delivery never forces
+ * a cleanup. A parent is delivered once every child is.
+ */
+function validateTrouble(features: readonly RawFeature[], version: number): void {
+  if (version < 3) return
+  const children = new Map<string, RawFeature[]>()
+  for (const f of features) {
+    if (f.parent != null) children.set(f.parent, [...(children.get(f.parent) ?? []), f])
+  }
+  const delivered = (f: RawFeature): boolean => {
+    const kids = children.get(f.name)
+    return kids ? kids.every(delivered) : f.delivered != null
+  }
+
+  for (const f of features) {
+    if (delivered(f)) continue
+    const fail = (msg: string) => {
+      throw new PlanParseError(`feature "${f.name}": ${msg}`)
+    }
+    const inTrouble = f.status === "at-risk" || f.status === "off-track"
+    if (f.problem != null && !inTrouble) {
+      fail("`problem` needs `status` at-risk or off-track — an on-track Feature carries no Problem")
+    }
+    if (f.status === "at-risk" && f.countermeasure == null) {
+      fail("an at-risk Feature needs a `countermeasure` — without one it is off-track")
+    }
+    if (f.status === "off-track" && f.countermeasure != null) {
+      fail(
+        "an off-track Feature has no Countermeasure — mark it at-risk, or remove `countermeasure`",
+      )
+    }
+    if (f.countermeasure != null && f.status !== "at-risk") {
+      fail('`countermeasure` needs `status = "at-risk"`')
+    }
   }
 }
 

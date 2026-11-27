@@ -195,7 +195,7 @@ describe("format version (macroplan_version)", () => {
   })
 
   it("rejects a future/unsupported version rather than mis-rendering it", () => {
-    expect(() => parseMacroplan(`macroplan_version = 3\n${feature}`)).toThrow(/unsupported/)
+    expect(() => parseMacroplan(`macroplan_version = 4\n${feature}`)).toThrow(/unsupported/)
   })
 
   it("rejects a non-integer version", () => {
@@ -404,6 +404,7 @@ name = "Pay"
 parent = "Checkout"
 weeks = 1
 status = "at-risk"
+countermeasure = "Pair on the vendor API"
 `
     const t = tallyPlan(buildPlan(parseMacroplan(src), TODAY))
     expect(t.features).toBe(2)

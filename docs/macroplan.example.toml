@@ -3,10 +3,10 @@
 # Reference Macroplan — a conformance sample exercising every field and state.
 # The authoritative definition of this format is docs/format.md.
 
-# Format version. Optional; the current version is 2. Omitting it means "2".
-# Version 2 adds nested Features (`parent`, `weeks`, `reestimate_weeks`); a plan
-# that doesn't use them can declare 1 so v1-only tools still read it.
-macroplan_version = 2
+# Format version. Optional; the current version is 3. Omitting it means "3".
+# Version 3 replaces `note` with `problem` and `countermeasure` (ADR-0005);
+# version 2 added nested Features (`parent`, `weeks`, `reestimate_weeks`).
+macroplan_version = 3
 
 title = "Q3 — Checkout revamp"
 
@@ -44,16 +44,18 @@ delivered = 2026-07-20
 learning = "Vendor lead time was the real constraint — derisk vendors up front."
 
 # In-flight and overdue: undelivered, `original` already in the past → ◯ only,
-# bar runs to "now". `status` + `note` express confidence while it's open.
+# bar runs to "now". `status` expresses confidence while it's open. Off-track
+# means in trouble with no Countermeasure yet: it may state its `problem` only.
 [[feature]]
 name = "Dashboard"
 area = "Product"
 start = 2026-06-01
 original = 2026-06-08
 status = "off-track"
-note = "No recovery plan yet — needs an owner."
+problem = "No owner since the reorg."
 
-# In-flight, re-estimated once: ◯ + △, still open.
+# In-flight, re-estimated once: ◯ + △, still open. At-risk means in trouble
+# with a Countermeasure: `countermeasure` is required, `problem` optional.
 [[feature]]
 name = "Search"
 area = "product" # same Area as Dashboard — matching ignores case
@@ -61,7 +63,8 @@ start = 2026-06-08
 original = 2026-06-22
 reestimates = [2026-07-06]
 status = "at-risk"
-note = "Third-party search API is flaky; spike a fallback."
+problem = "Third-party search API is flaky."
+countermeasure = "Spike a fallback on the in-house index."
 
 # In-flight, on track: the minimal feature — only the three required fields
 # plus a status. No `area`, so it joins the unlabelled band rendered first.
@@ -81,7 +84,8 @@ status = "on-track"
 name = "Checkout flow"
 area = "Product"
 status = "at-risk"
-note = "Vendor slip is eating the buffer."
+problem = "Vendor slip is eating the buffer."
+countermeasure = "Cut Rollout to the two largest markets."
 
 [[feature]]
 name = "Vendor contract"
