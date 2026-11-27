@@ -33,15 +33,18 @@ let metrics = { charWidth: 8, lineHeight: 20, padLeft: 16, padTop: 14 }
 onMounted(async () => {
   measure()
   // Lazy-load Shiki as its own chunk so it stays out of the initial bundle.
-  // Fine-grained: only the TOML grammar + one light theme, JS engine (no WASM).
-  const [core, engine, toml, theme] = await Promise.all([
+  // Fine-grained: only the TOML grammar + a light/dark theme pair, JS engine (no
+  // WASM). The -default pair, not github-light/dark: their weakest text token
+  // is 4.55:1 / 5.15:1 on base-100, where github-dark's comments fall to 3.3:1.
+  const [core, engine, toml, light, dark] = await Promise.all([
     import("shiki/core"),
     import("shiki/engine/javascript"),
     import("shiki/langs/toml.mjs"),
-    import("shiki/themes/github-light.mjs"),
+    import("shiki/themes/github-light-default.mjs"),
+    import("shiki/themes/github-dark-default.mjs"),
   ])
   highlighter.value = await core.createHighlighterCore({
-    themes: [theme.default],
+    themes: [light.default, dark.default],
     langs: [toml.default],
     engine: engine.createJavaScriptRegexEngine(),
   })
@@ -169,7 +172,13 @@ const highlighted = computed(() => {
   const code = props.modelValue.endsWith("\n") ? props.modelValue + " " : props.modelValue
   const hl = highlighter.value
   if (!hl) return `<pre class="shiki"><code>${escapeHtml(code)}</code></pre>`
-  return hl.codeToHtml(code, { lang: "toml", theme: "github-light" })
+  // Both colours ride on each token as --shiki-light / --shiki-dark; CSS picks
+  // one, so switching Theme recolours the source without re-highlighting.
+  return hl.codeToHtml(code, {
+    lang: "toml",
+    themes: { light: "github-light-default", dark: "github-dark-default" },
+    defaultColor: false,
+  })
 })
 
 defineExpose({ focus: () => textarea.value?.focus() })
@@ -296,6 +305,11 @@ function syncScroll() {
 .backdrop :deep(pre.shiki),
 .backdrop :deep(pre.shiki code) {
   font: inherit;
+}
+/* DaisyUI sets color-scheme per Theme, so light-dark() follows a picked Theme
+   and the system one alike. */
+.backdrop :deep(pre.shiki span) {
+  color: light-dark(var(--shiki-light), var(--shiki-dark));
 }
 .input {
   z-index: 1;
