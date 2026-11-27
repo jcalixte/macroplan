@@ -26,6 +26,11 @@
   --color-ink-success: color-mix(in oklab, var(--color-success) 60%, var(--color-base-content));
   --color-ink-warning: color-mix(in oklab, var(--color-warning) 60%, var(--color-base-content));
   --color-ink-error: color-mix(in oklab, var(--color-error) 75%, var(--color-base-content));
+  /* Off-track alarm: a true red, deeper than DaisyUI's pink error so a Feature
+     in trouble reads as an andon. White on it is 5.4:1; as a 26% row tint it
+     keeps base-content ≥ 10.8:1 and ink-error bars ≥ 3.3:1 on both themes. */
+  --color-alarm: oklch(55% 0.21 27);
+  --color-alarm-content: #ffffff;
   /* Secondary text: 5.4:1 light, 5.7:1 dark — the floor for small labels. */
   --color-ink-muted: color-mix(in oklab, var(--color-base-content) 60%, var(--color-base-100));
 }

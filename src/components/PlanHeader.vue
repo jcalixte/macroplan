@@ -105,8 +105,8 @@ const items = computed(() => {
   line-height: 1.6;
 }
 .fill-off-track {
-  background: var(--color-error);
-  color: var(--color-error-content);
+  background: var(--color-alarm);
+  color: var(--color-alarm-content);
 }
 .fill-at-risk {
   background: var(--color-warning);

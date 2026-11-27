@@ -553,13 +553,13 @@ const bandStyle = computed(() => ({
   --row-base: var(--color-base-100);
   --row-bg: var(--row-base);
 }
-/* Trouble tints, measured on both themes: base-content stays ≥ 11:1 on them and
-   the status inks (bars, borders) ≥ 3.8:1. */
+/* Trouble tints, measured on both themes: base-content stays ≥ 10.8:1 on them
+   and the status inks (bars, borders) ≥ 3.3:1. */
 .row-at-risk {
   --row-base: color-mix(in oklab, var(--color-warning) 18%, var(--color-base-100));
 }
 .row-off-track {
-  --row-base: color-mix(in oklab, var(--color-error) 14%, var(--color-base-100));
+  --row-base: color-mix(in oklab, var(--color-alarm) 26%, var(--color-base-100));
 }
 .row:hover {
   --row-bg: color-mix(in oklab, var(--color-primary) 7%, var(--row-base));
@@ -751,7 +751,7 @@ const bandStyle = computed(() => ({
   white-space: nowrap;
 }
 /* Filled chip for a Feature in trouble: the loudest mark on the row. DaisyUI's
-   content pairs measure 5.2:1 (warning) and 5.5:1 (error) on both themes. */
+   warning pair measures 5.2:1, the alarm red with white 5.4:1, on both themes. */
 .chip-fill {
   border-color: transparent;
   padding-inline: 0.45rem;
@@ -765,8 +765,8 @@ const bandStyle = computed(() => ({
   color: var(--color-warning-content);
 }
 .chip-off-track {
-  background: var(--color-error);
-  color: var(--color-error-content);
+  background: var(--color-alarm);
+  color: var(--color-alarm-content);
 }
 /* Problem → Countermeasure, one per line so a long Problem never truncates the
    action. The Problem is what a reviewer must see first, so it leads in bold. The arrow hangs in
