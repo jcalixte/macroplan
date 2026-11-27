@@ -20,10 +20,22 @@ const StoredPlanSchema = v.object({
 })
 export type StoredPlan = v.InferOutput<typeof StoredPlanSchema>
 
+// The Archive: the last archived plan, restorable even after a reload. One
+// slot — archiving another plan deletes this one for good. `seedId` is the
+// sample re-seeded when the archived plan was the last one, removed again on
+// restore if untouched.
+const ArchiveSchema = v.object({
+  plan: StoredPlanSchema,
+  index: v.number(),
+  wasActive: v.boolean(),
+  seedId: v.optional(v.string()),
+})
+
 const LibrarySchema = v.object({
   version: v.literal(1),
   activeId: v.string(),
   plans: v.array(StoredPlanSchema),
+  archived: v.optional(ArchiveSchema),
 })
 type Library = v.InferOutput<typeof LibrarySchema>
 
@@ -69,7 +81,12 @@ function loadLibrary(): Library {
       if (parsed.success && parsed.output.plans.length > 0) {
         const lib = parsed.output
         if (!lib.plans.some((p) => p.id === lib.activeId)) lib.activeId = lib.plans[0].id
-        result = { version: 1, activeId: lib.activeId, plans: lib.plans.map(refreshSample) }
+        result = {
+          version: 1,
+          activeId: lib.activeId,
+          plans: lib.plans.map(refreshSample),
+          archived: lib.archived,
+        }
       }
     } catch {
       /* corrupt JSON → fall through to migration / seed */
@@ -96,7 +113,7 @@ function loadLibrary(): Library {
  * Owns the Library — the collection of named Macroplans in localStorage
  * (ADR-0002). Exposes the active plan's authoring state (source / parsed plan /
  * error, with the last good render kept through transient typos, F3) plus the
- * switch / create / delete operations over the library.
+ * switch / create / archive operations over the library.
  */
 export function useMacroplan() {
   const lib = ref<Library>(loadLibrary())
@@ -170,7 +187,7 @@ export function useMacroplan() {
     newPlan: () => {
       // A new plan starts blank. The bundled sample is reserved for a genuinely
       // empty library — first run (loadLibrary) or deleting the last plan
-      // (deletePlan) — and the ≥1-plan invariant keeps the library non-empty
+      // (archivePlan) — and the ≥1-plan invariant keeps the library non-empty
       // here, so "+ New" never re-clones the sample over an existing library.
       const p = newStoredPlan("")
       lib.value.plans.push(p)
@@ -183,18 +200,41 @@ export function useMacroplan() {
       lib.value.plans.push(...lessons)
       switchTo(lessons[0].id)
     },
-    deletePlan: (id: string) => {
+    /** Move a plan to the Archive. Returns the name of the plan it pushes out
+     *  — deleted for good — if the Archive was already holding one. */
+    archivePlan: (id: string): string | null => {
       const idx = lib.value.plans.findIndex((p) => p.id === id)
-      if (idx === -1) return
+      if (idx === -1) return null
+      const evicted = lib.value.archived?.plan.name ?? null
       const wasActive = lib.value.activeId === id
-      lib.value.plans.splice(idx, 1)
+      const [gone] = lib.value.plans.splice(idx, 1)
+      let seedId: string | undefined
       if (lib.value.plans.length === 0) {
         const seed = newStoredPlan(SAMPLE_PLAN)
+        seedId = seed.id
         lib.value.plans.push(seed)
         switchTo(seed.id)
       } else if (wasActive) {
         switchTo(lib.value.plans[Math.max(0, idx - 1)].id)
       }
+      lib.value.archived = { plan: gone, index: idx, wasActive, seedId }
+      return evicted
+    },
+    /** The plan in the Archive, if any. */
+    archived: computed(() => {
+      const t = lib.value.archived
+      return t ? { id: t.plan.id, name: t.plan.name } : null
+    }),
+    /** Put the archived plan back where it was, reopening it if it was open. */
+    restorePlan: () => {
+      const t = lib.value.archived
+      if (!t) return
+      const plans = lib.value.plans
+      const seedAt = plans.findIndex((p) => p.id === t.seedId && p.source === SAMPLE_PLAN)
+      if (seedAt !== -1) plans.splice(seedAt, 1)
+      plans.splice(Math.min(t.index, plans.length), 0, t.plan)
+      lib.value.archived = undefined
+      if (t.wasActive || seedAt !== -1) switchTo(t.plan.id)
     },
   }
 }

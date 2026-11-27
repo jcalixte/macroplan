@@ -51,41 +51,67 @@ describe("App — plan library wiring", () => {
     expect(dropdownLinks(w)).toHaveLength(4) // 2 plans + New + Download
   })
 
-  it("opens the confirm modal and deletes the active plan on confirm", async () => {
+  it("archives a plan from its switcher row at once, and Undo brings it back", async () => {
     const w = mountApp()
     await dropdownLinks(w)[1].trigger("click") // New → 2 plans
     await nextTick()
-    expect(dropdownLinks(w)).toHaveLength(4)
+    const rows = () => w.findAll(".dropdown-content button.archive")
+    expect(rows()).toHaveLength(2)
 
-    await w.find('button[title="Delete this plan"]').trigger("click")
-    expect(w.find(".modal-open").exists()).toBe(true)
-
-    await w.find(".modal-action .btn-error").trigger("click") // Delete
+    await rows()[0].trigger("click") // the sample, not the open plan
     await nextTick()
-    expect(w.find(".modal-open").exists()).toBe(false)
-    expect(dropdownLinks(w)).toHaveLength(3) // back to 1 plan
-  })
+    expect(rows()).toHaveLength(1)
+    expect(w.find(".undo").text()).toContain("Archived “Q3 — Checkout revamp”")
 
-  it("cancel dismisses the modal without deleting", async () => {
-    const w = mountApp()
-    await w.find('button[title="Delete this plan"]').trigger("click")
-    expect(w.find(".modal-open").exists()).toBe(true)
-
-    const cancel = w.findAll(".modal-action .btn").find((b) => !b.classes().includes("btn-error"))!
-    await cancel.trigger("click")
-    expect(w.find(".modal-open").exists()).toBe(false)
-    expect(dropdownLinks(w)).toHaveLength(3) // plan untouched
-  })
-
-  it("re-seeds a fresh sample when the last plan is deleted (never empty)", async () => {
-    const w = mountApp()
-    expect(dropdownLinks(w)).toHaveLength(3) // 1 plan
-
-    await w.find('button[title="Delete this plan"]').trigger("click")
-    await w.find(".modal-action .btn-error").trigger("click") // Delete the only plan
+    await w.find(".undo button").trigger("click")
     await nextTick()
-    expect(dropdownLinks(w)).toHaveLength(3) // still 1 plan — re-seeded
+    expect(rows()).toHaveLength(2)
+    expect(w.find(".undo").exists()).toBe(false)
     expect(w.text()).toContain("Q3 — Checkout revamp")
+  })
+
+  it("has no confirm dialog and no archive button in the header", () => {
+    const w = mountApp()
+    expect(w.find(".modal").exists()).toBe(false)
+    expect(w.find('header > button[aria-label^="Archive"]').exists()).toBe(false)
+  })
+
+  it("undoing the archive of the only plan leaves just that plan, not the re-seeded sample", async () => {
+    const w = mountApp()
+    await w.find(".dropdown-content button.archive").trigger("click")
+    await nextTick()
+    expect(dropdownLinks(w)).toHaveLength(3) // never empty: sample re-seeded
+    await w.find(".undo button").trigger("click")
+    await nextTick()
+    expect(dropdownLinks(w)).toHaveLength(3) // the original back, the seed gone
+  })
+
+  it("shows the archived plan in the switcher and restores it from there", async () => {
+    const w = mountApp()
+    await dropdownLinks(w)[1].trigger("click") // New → 2 plans
+    await nextTick()
+    expect(w.find(".dropdown-content .restore").exists()).toBe(false)
+    await w.findAll(".dropdown-content button.archive")[0].trigger("click")
+    await nextTick()
+    expect(w.find(".dropdown-content .archived-name").text()).toBe("Q3 — Checkout revamp")
+    await w.find(".dropdown-content .restore").trigger("click")
+    await nextTick()
+    expect(w.find(".dropdown-content .restore").exists()).toBe(false)
+    expect(w.findAll(".dropdown-content button.archive")).toHaveLength(2)
+  })
+
+  it("warns when archiving pushes the previous plan out for good", async () => {
+    const w = mountApp()
+    await dropdownLinks(w)[1].trigger("click")
+    await nextTick()
+    await dropdownLinks(w)[2].trigger("click") // New → 3 plans
+    await nextTick()
+    const rows = () => w.findAll(".dropdown-content button.archive")
+    await rows()[0].trigger("click")
+    await nextTick()
+    await rows()[0].trigger("click")
+    await nextTick()
+    expect(w.find(".undo").text()).toContain("“Q3 — Checkout revamp” left the Archive for good.")
   })
 
   it("wires the dropdown .toml download to downloadSource with the active source and a .toml name", async () => {

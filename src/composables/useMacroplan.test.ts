@@ -109,20 +109,85 @@ describe("useMacroplan — CRUD", () => {
     expect(m.source.value).toBe("") // blank page, not a copy of the sample
   })
 
-  it("deletePlan removes the active plan and re-points to the preceding one", () => {
+  it("archivePlan removes the active plan and re-points to the preceding one", () => {
     const m = useMacroplan()
     m.newPlan() // 2 plans; second is active
     const [first, second] = m.plans.value
-    m.deletePlan(second.id)
+    m.archivePlan(second.id)
     expect(m.plans.value).toHaveLength(1)
     expect(m.activeId.value).toBe(first.id)
   })
 
-  it("deleting the last plan re-seeds a fresh sample (never empty)", () => {
+  it("archiving the last plan re-seeds a fresh sample (never empty)", () => {
     const m = useMacroplan()
-    m.deletePlan(m.activeId.value)
+    m.archivePlan(m.activeId.value)
     expect(m.plans.value).toHaveLength(1)
     expect(m.source.value).toBe(SAMPLE_PLAN)
+  })
+
+  it("keeps the archived plan restorable, and restores it in place with its fold state", () => {
+    const m = useMacroplan()
+    m.newPlan()
+    m.newPlan() // 3 plans; third is active
+    const [a, b, c] = m.plans.value
+    m.selectPlan(b.id)
+    m.toggleExpanded("Parent")
+    m.archivePlan(b.id)
+    expect(m.plans.value.map((p) => p.id)).toEqual([a.id, c.id])
+    expect(m.archived.value).toEqual({ id: b.id, name: b.name })
+
+    m.restorePlan()
+    expect(m.plans.value.map((p) => p.id)).toEqual([a.id, b.id, c.id])
+    expect(m.activeId.value).toBe(b.id) // it was open, so it reopens
+    expect(m.expanded.value.has("Parent")).toBe(true)
+    expect(m.archived.value).toBeNull()
+  })
+
+  it("archiving a plan that isn't open leaves the open one alone, before and after undo", () => {
+    const m = useMacroplan()
+    m.newPlan()
+    const [a, b] = m.plans.value // b is active
+    m.archivePlan(a.id)
+    expect(m.activeId.value).toBe(b.id)
+    m.restorePlan()
+    expect(m.activeId.value).toBe(b.id)
+    expect(m.plans.value.map((p) => p.id)).toEqual([a.id, b.id])
+  })
+
+  it("keeps the Archive across a reload", async () => {
+    const m = useMacroplan()
+    m.newPlan()
+    const gone = m.plans.value[1]
+    m.archivePlan(gone.id)
+    await nextTick() // autosave
+    const again = useMacroplan()
+    expect(again.archived.value?.id).toBe(gone.id)
+    again.restorePlan()
+    expect(again.plans.value.map((p) => p.id)).toContain(gone.id)
+  })
+
+  it("holds one plan: archiving another deletes the first for good, and says which", () => {
+    const m = useMacroplan()
+    m.newPlan()
+    m.newPlan()
+    const [, b, c] = m.plans.value
+    expect(m.archivePlan(b.id)).toBeNull()
+    expect(m.archivePlan(c.id)).toBe(b.name)
+    expect(m.archived.value?.id).toBe(c.id)
+    m.restorePlan()
+    expect(m.plans.value.map((p) => p.id)).not.toContain(b.id)
+  })
+
+  it("restoring the last plan drops the untouched sample it re-seeded", () => {
+    const m = useMacroplan()
+    m.newPlan()
+    m.archivePlan(m.plans.value[0].id)
+    const only = m.plans.value[0]
+    m.source.value = 'title = "Mine"'
+    m.archivePlan(only.id) // last plan → sample re-seeded
+    m.restorePlan()
+    expect(m.plans.value.map((p) => p.id)).toEqual([only.id])
+    expect(m.activeId.value).toBe(only.id)
   })
 
   it("switching to a broken plan shows its own empty state, not the previous render", async () => {

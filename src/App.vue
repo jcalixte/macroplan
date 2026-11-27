@@ -27,14 +27,14 @@ const {
   selectPlan,
   newPlan,
   startTutorial,
-  deletePlan,
+  archivePlan,
+  archived,
+  restorePlan,
 } = useMacroplan()
 const { busy, toast, holdToast, releaseToast, copyPng, downloadPng, sharePng } = usePngExport()
 
 const exportRoot = ref<HTMLElement>()
 const editor = ref<InstanceType<typeof PlanEditor>>()
-const cancelDelete = ref<HTMLButtonElement>()
-const confirmingDelete = ref(false)
 const paletteOpen = ref(false)
 
 // Which panes are visible: the Source editor, the rendered Macroplan, or both.
@@ -93,13 +93,39 @@ function downloadToml() {
   downloadSource(source.value, sourceFilename(plan.value?.title ?? activeName.value))
 }
 
-function confirmDelete() {
-  deletePlan(activeId.value)
-  confirmingDelete.value = false
+// Archive acts at once and offers Undo, rather than asking first: the risk is
+// regretting it a minute later, which a confirm dialog never covered. The toast
+// fades, but the plan stays in the Archive until the next one replaces it —
+// and the toast says when that replacement deletes a plan for good.
+const undoToast = ref<{ name: string; evicted: string | null } | null>(null)
+let undoTimer: ReturnType<typeof setTimeout> | undefined
+const UNDO_MS = 8000
+
+function hideUndoLater() {
+  clearTimeout(undoTimer)
+  undoTimer = setTimeout(() => (undoToast.value = null), UNDO_MS)
 }
 
-// Land on Cancel, so Enter right after opening the dialog is the safe choice.
-watch(confirmingDelete, (open) => open && nextTick(() => cancelDelete.value?.focus()))
+function holdUndo() {
+  clearTimeout(undoTimer)
+}
+
+function releaseUndo() {
+  if (undoToast.value) hideUndoLater()
+}
+
+function archive(id: string) {
+  const name = plans.value.find((p) => p.id === id)?.name ?? "Untitled"
+  const evicted = archivePlan(id)
+  undoToast.value = { name, evicted }
+  hideUndoLater()
+}
+
+function restoreArchived() {
+  restorePlan()
+  clearTimeout(undoTimer)
+  undoToast.value = null
+}
 
 // ── Keyboard layer ───────────────────────────────────────────────────────────
 // One list drives both the palette and the global shortcuts, so a chord shown
@@ -201,11 +227,19 @@ const commands = computed<Command[]>(() => {
     )
   }
   list.push({
-    id: "delete",
+    id: "archive",
     group: "Plan",
-    label: `Delete “${activeName.value}”…`,
-    run: () => (confirmingDelete.value = true),
+    label: `Archive “${activeName.value}”`,
+    run: () => archive(activeId.value),
   })
+  if (archived.value) {
+    list.push({
+      id: "restore",
+      group: "Plan",
+      label: `Restore “${archived.value.name}” from the Archive`,
+      run: restoreArchived,
+    })
+  }
 
   if (plan.value && !busy.value) {
     if (canShare) {
@@ -256,10 +290,6 @@ const commands = computed<Command[]>(() => {
 function onKeydown(e: KeyboardEvent) {
   if (e.defaultPrevented || e.isComposing) return
   if (paletteOpen.value || inspecting.value) return // their own dialogs handle their keys
-  if (confirmingDelete.value) {
-    if (e.key === "Escape") confirmingDelete.value = false
-    return
-  }
   if (matches(e, PALETTE)) {
     e.preventDefault()
     paletteOpen.value = true
@@ -307,6 +337,9 @@ const paletteAria = ariaChord(PALETTE)
           @select="selectPlan"
           @new="newPlan"
           @download="downloadToml"
+          :archived="archived"
+          @archive="archive"
+          @restore="restoreArchived"
         />
       </div>
       <div class="join" role="group" aria-label="Choose which panes to show">
@@ -356,23 +389,6 @@ const paletteAria = ariaChord(PALETTE)
         <span class="keys inline-flex max-sm:hidden" aria-hidden="true">
           <kbd v-for="k in paletteKeys" :key="k">{{ k }}</kbd>
         </span>
-      </button>
-      <!-- On a phone, Delete lives in the command list: a header slot is too
-           precious, and too easy to hit, for a reader's least-used action. -->
-      <button
-        class="btn btn-ghost btn-sm btn-square max-sm:hidden"
-        :disabled="busy"
-        title="Delete this plan"
-        aria-label="Delete this plan"
-        @click="confirmingDelete = true"
-      >
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 7l16 0" />
-          <path d="M10 11l0 6" />
-          <path d="M14 11l0 6" />
-          <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
-          <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
-        </svg>
       </button>
     </header>
 
@@ -482,24 +498,6 @@ const paletteAria = ariaChord(PALETTE)
       </section>
     </main>
 
-    <dialog class="modal" :class="{ 'modal-open': confirmingDelete }">
-      <div class="modal-box">
-        <h3 class="text-base font-semibold">Delete "{{ activeName }}"?</h3>
-        <p class="py-2 text-sm text-base-content/70">
-          This removes the plan from your library. Download its .toml first if you want to keep it.
-        </p>
-        <div class="modal-action">
-          <button ref="cancelDelete" class="btn btn-sm" @click="confirmingDelete = false">
-            Cancel
-          </button>
-          <button class="btn btn-sm btn-error" @click="confirmDelete">Delete</button>
-        </div>
-      </div>
-      <form method="dialog" class="modal-backdrop" @click="confirmingDelete = false">
-        <button>close</button>
-      </form>
-    </dialog>
-
     <FeatureSheet :facts="inspected" @close="inspecting = null" />
 
     <CommandPalette :open="paletteOpen" :commands="commands" @close="paletteOpen = false" />
@@ -517,6 +515,24 @@ const paletteAria = ariaChord(PALETTE)
           @focusout="releaseToast"
         >
           <span>{{ toast.text }}</span>
+        </div>
+      </Transition>
+      <Transition name="toast">
+        <div
+          v-if="undoToast"
+          class="alert undo"
+          @pointerenter="holdUndo"
+          @pointerleave="releaseUndo"
+          @focusin="holdUndo"
+          @focusout="releaseUndo"
+        >
+          <div class="min-w-0">
+            <p class="truncate">Archived “{{ undoToast.name }}”</p>
+            <p v-if="undoToast.evicted" class="truncate text-xs text-ink-muted">
+              “{{ undoToast.evicted }}” left the Archive for good.
+            </p>
+          </div>
+          <button class="btn btn-sm btn-primary" @click="restoreArchived">Undo</button>
         </div>
       </Transition>
     </div>
@@ -584,6 +600,14 @@ const paletteAria = ariaChord(PALETTE)
 .toast > .alert {
   pointer-events: auto;
   animation: none;
+}
+/* Archiving is not a success: the Undo toast stays neutral, its button the accent. */
+.undo {
+  max-width: min(24rem, calc(100vw - 2rem));
+  grid-auto-flow: column;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-color: var(--color-base-300);
+  background: var(--color-base-100);
 }
 .toast-enter-active {
   transition:
