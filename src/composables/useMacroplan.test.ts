@@ -151,3 +151,23 @@ describe("useMacroplan — fold state (F11)", () => {
     expect(m.source.value).toBe(before)
   })
 })
+
+describe("useMacroplan — tutorial", () => {
+  it("appends the six lessons after the existing plans and opens the first", () => {
+    const m = useMacroplan()
+    const before = m.plans.value.map((p) => p.id)
+    m.startTutorial("2026-11-27")
+    expect(m.plans.value).toHaveLength(7)
+    expect(m.plans.value.slice(0, 1).map((p) => p.id)).toEqual(before)
+    expect(m.plans.value[1].name).toBe("Tutorial 1 · One feature")
+    expect(m.activeId.value).toBe(m.plans.value[1].id)
+    expect(m.error.value).toBeNull()
+  })
+
+  it("adds a fresh set on a second run instead of replacing the first", () => {
+    const m = useMacroplan()
+    m.startTutorial("2026-11-27")
+    m.startTutorial("2026-11-27")
+    expect(m.plans.value).toHaveLength(13)
+  })
+})

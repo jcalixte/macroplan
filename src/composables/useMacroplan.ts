@@ -5,6 +5,7 @@ import { buildPlan } from "../model/plan"
 import { longTextHints, versionHint } from "../model/hints"
 import type { Plan } from "../model/types"
 import { SAMPLE_PLAN } from "../data/sample"
+import { tutorialPlans } from "../data/tutorial"
 
 const STORAGE_KEY = "macroplan:library"
 const LEGACY_KEY = "macroplan:source"
@@ -167,6 +168,13 @@ export function useMacroplan() {
       const p = newStoredPlan("")
       lib.value.plans.push(p)
       switchTo(p.id)
+    },
+    /** Append a fresh set of lesson plans and open the first. Never touches
+     *  existing plans, earlier tutorial copies included: they may be edited. */
+    startTutorial: (today: Date | string = new Date()) => {
+      const lessons = tutorialPlans(today).map((src) => newStoredPlan(src))
+      lib.value.plans.push(...lessons)
+      switchTo(lessons[0].id)
     },
     deletePlan: (id: string) => {
       const idx = lib.value.plans.findIndex((p) => p.id === id)

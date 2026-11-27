@@ -23,6 +23,7 @@ const {
   activeId,
   selectPlan,
   newPlan,
+  startTutorial,
   deletePlan,
 } = useMacroplan()
 const { busy, toast, holdToast, releaseToast, copyPng, downloadPng } = usePngExport()
@@ -144,6 +145,12 @@ const commands = computed<Command[]>(() => {
   }
 
   list.push({ id: "new", group: "Plan", label: "New plan", chord: { key: "n" }, run: newPlan })
+  list.push({
+    id: "tutorial",
+    group: "Plan",
+    label: "Start the tutorial: learn to write a plan",
+    run: () => startTutorial(),
+  })
   if (plans.value.length > 1) {
     list.push(
       {
