@@ -61,6 +61,15 @@ describe("MacroplanGrid renders the sample plan", () => {
     )
   })
 
+  it("puts the Countermeasure on its own line, after the Problem, led by the arrow", () => {
+    const trouble = mountGrid().findAll(".learncell")[3].find(".trouble")
+    const lines = trouble.element.children
+    expect(lines).toHaveLength(2)
+    expect(lines[0].className).toBe("problem")
+    expect(lines[1].className).toBe("cm-line")
+    expect(trouble.find(".cm-line .arrow").text()).toBe("→")
+  })
+
   it("shows no arrow on an off-track Feature: no Countermeasure", () => {
     const dashboard = mountGrid().findAll(".learncell")[2]
     expect(dashboard.find(".problem").text()).toBe("No owner since the reorg.")

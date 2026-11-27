@@ -337,10 +337,16 @@ const bandStyle = computed(() => ({
           </template>
           <template v-else>
             <span class="chip" :class="TONE_CHIP[tone(row)]">{{ statusWord(row) }}</span>
-            <span v-if="inTrouble(row)" class="celltext" :title="troubleTitle(row)">
+            <span
+              v-if="inTrouble(row) && (row.problem || row.countermeasure)"
+              class="celltext trouble"
+              :title="troubleTitle(row)"
+            >
               <span v-if="row.problem" class="problem">{{ row.problem }}</span>
-              <span v-if="row.countermeasure" class="arrow">→</span>
-              <span v-if="row.countermeasure" class="countermeasure">{{ row.countermeasure }}</span>
+              <span v-if="row.countermeasure" class="cm-line">
+                <span class="arrow" aria-hidden="true">→</span>
+                <span class="countermeasure">{{ row.countermeasure }}</span>
+              </span>
             </span>
           </template>
         </div>
@@ -610,12 +616,17 @@ const bandStyle = computed(() => ({
   border-radius: 0.3rem;
 }
 
+/* Chip in its own column, text beside it. Baseline alignment pins the chip to
+   the first line of a two-line Problem → Countermeasure; align-content keeps
+   one-line cells vertically centred. */
 .learncell {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  align-items: baseline;
+  column-gap: 0.5rem;
   min-height: 2rem;
-  padding: 0 0.6rem;
+  padding: 0.125rem 0.6rem;
   font-size: 0.75rem;
   border-bottom: 1px solid var(--color-base-200);
 }
@@ -638,11 +649,45 @@ const bandStyle = computed(() => ({
   line-height: 1.4;
   white-space: nowrap;
 }
-/* Problem → Countermeasure: the fact is muted, the action carries the weight. */
-.celltext .arrow {
-  margin-inline: 0.3em;
+/* Problem → Countermeasure, one per line so a long Problem never truncates the
+   action. The fact is muted; the action carries the weight. The arrow hangs in
+   the gutter under the chip, so both lines start flush. */
+.learncell .trouble {
+  overflow: visible;
+  white-space: normal;
+  line-height: 1.25;
 }
-.celltext .problem,
+.trouble .problem,
+.trouble .countermeasure {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trouble .countermeasure {
+  font-weight: 500;
+}
+.cm-line {
+  position: relative;
+  display: block;
+}
+.problem + .cm-line .arrow {
+  position: absolute;
+  right: 100%;
+  padding-right: 0.5rem; /* = the learncell column-gap: ends at the chip's edge */
+}
+/* No Problem stated: the Countermeasure is the first line, arrow inline. */
+.cm-line:first-child {
+  display: flex;
+  gap: 0.3em;
+}
+.cm-line:first-child .countermeasure {
+  min-width: 0;
+}
+.arrow {
+  color: var(--color-ink-muted);
+}
+.trouble .problem,
 .legend-problem {
   color: var(--color-ink-muted);
   font-style: normal;
