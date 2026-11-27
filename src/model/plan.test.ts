@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import exampleToml from "../../docs/macroplan.example.toml?raw"
 import { parseMacroplan, PlanParseError } from "./parse"
-import { buildPlan } from "./plan"
+import { buildPlan, tallyPlan } from "./plan"
 import { mondayOf, weekRange } from "./week"
 import type { FeatureRow } from "./types"
 import { SAMPLE_PLAN } from "../data/sample"
@@ -371,5 +371,43 @@ describe("Breaks — drawn only", () => {
 
   it("accepts `to` in the same week as `from`", () => {
     expect(() => parseMacroplan(off("from = 2026-06-19\nto = 2026-06-15"))).not.toThrow()
+  })
+})
+
+describe("tallyPlan — the at-a-glance readout above the grid", () => {
+  it("counts every Feature of the sample by state, and milestones with unmet requirements", () => {
+    const t = tallyPlan(buildPlan(parseMacroplan(SAMPLE_PLAN), TODAY))
+    expect(t).toEqual({
+      features: 5,
+      onTime: 1,
+      late: 1,
+      onTrack: 1,
+      atRisk: 1,
+      offTrack: 1,
+      inFlight: 0,
+      milestones: 3,
+      unmetMilestones: 3,
+    })
+  })
+
+  it("counts leaves only, so a parent never double-counts its children", () => {
+    const src = `
+[[feature]]
+name = "Checkout"
+[[feature]]
+name = "Cart"
+parent = "Checkout"
+start = 2026-06-01
+weeks = 2
+[[feature]]
+name = "Pay"
+parent = "Checkout"
+weeks = 1
+status = "at-risk"
+`
+    const t = tallyPlan(buildPlan(parseMacroplan(src), TODAY))
+    expect(t.features).toBe(2)
+    expect(t.inFlight).toBe(1)
+    expect(t.atRisk).toBe(1)
   })
 })

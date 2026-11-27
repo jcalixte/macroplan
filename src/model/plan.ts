@@ -357,3 +357,42 @@ export function visibleRows(
   }
   return { rows, bands }
 }
+
+export interface PlanTally {
+  features: number
+  onTime: number
+  late: number
+  onTrack: number
+  atRisk: number
+  offTrack: number
+  inFlight: number // undelivered, no Status authored
+  milestones: number
+  unmetMilestones: number
+}
+
+/** The plan's state in one line. Leaves only: a parent's dates and Delivery
+ *  derive from its children, so counting it too would double-count the work. */
+export function tallyPlan(plan: Pick<Plan, "rows" | "milestones">): PlanTally {
+  const t: PlanTally = {
+    features: 0,
+    onTime: 0,
+    late: 0,
+    onTrack: 0,
+    atRisk: 0,
+    offTrack: 0,
+    inFlight: 0,
+    milestones: plan.milestones.length,
+    unmetMilestones: plan.milestones.filter((m) => m.unmet.length > 0).length,
+  }
+  for (const r of plan.rows) {
+    if (r.childCount > 0) continue
+    t.features++
+    if (r.delivered && r.onTime) t.onTime++
+    else if (r.delivered) t.late++
+    else if (r.status === "on-track") t.onTrack++
+    else if (r.status === "at-risk") t.atRisk++
+    else if (r.status === "off-track") t.offTrack++
+    else t.inFlight++
+  }
+  return t
+}
