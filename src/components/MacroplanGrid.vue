@@ -23,11 +23,11 @@ const GLYPH: Record<MarkerKind, string> = {
   forecast: "◌",
 }
 const MARKER_CLASS: Record<MarkerKind, string> = {
-  original: "text-base-content/50",
-  reestimate: "text-warning",
-  "delivered-on-time": "text-success",
-  "delivered-late": "text-error",
-  forecast: "text-base-content/40", // computed, not committed — drawn muted
+  original: "text-base-content/60",
+  reestimate: "text-ink-warning",
+  "delivered-on-time": "text-ink-success",
+  "delivered-late": "text-ink-error",
+  forecast: "text-base-content/50", // computed, not committed — drawn muted
 }
 // When two markers land on the same week, the higher rank owns the cell.
 const RANK: Record<MarkerKind, number> = {
@@ -38,22 +38,22 @@ const RANK: Record<MarkerKind, number> = {
   forecast: 0,
 }
 const TONE_TEXT: Record<Tone, string> = {
-  success: "text-success",
-  warning: "text-warning",
-  error: "text-error",
+  success: "text-ink-success",
+  warning: "text-ink-warning",
+  error: "text-ink-error",
   neutral: "text-primary",
 }
 const TONE_BORDER: Record<Tone, string> = {
-  success: "border-success",
-  warning: "border-warning",
-  error: "border-error",
+  success: "border-ink-success",
+  warning: "border-ink-warning",
+  error: "border-ink-error",
   neutral: "border-primary",
 }
 const TONE_DOT: Record<Tone, string> = {
-  success: "bg-success",
-  warning: "bg-warning",
-  error: "bg-error",
-  neutral: "bg-base-300",
+  success: "bg-ink-success",
+  warning: "bg-ink-warning",
+  error: "bg-ink-error",
+  neutral: "bg-base-content/40",
 }
 
 // Layout constants (must match the CSS vars --name-w / --wk / --area-w) for
@@ -274,7 +274,9 @@ const bandStyle = computed(() => ({
       </div>
 
       <!-- feature rows -->
-      <template v-for="(row, ri) in shown.rows" :key="row.name">
+      <!-- display: contents keeps the cells on the grid; the wrapper only
+           exists so hovering any cell can tint the whole row -->
+      <div v-for="(row, ri) in shown.rows" :key="row.name" class="row">
         <div
           class="namecell border-l-4"
           :class="TONE_BORDER[tone(row)]"
@@ -294,7 +296,7 @@ const bandStyle = computed(() => ({
           <span v-if="row.childCount" class="childcount">({{ row.childCount }})</span>
           <span
             v-if="row.outOfOrder"
-            class="out-of-order text-warning"
+            class="out-of-order text-ink-warning"
             title="Delivered before an earlier Feature in its chain"
             >⚠</span
           >
@@ -325,17 +327,17 @@ const bandStyle = computed(() => ({
             <span class="note" :title="row.note || ''">{{ row.note || statusWord(row) }}</span>
           </template>
         </div>
-      </template>
+      </div>
     </div>
   </div>
 
   <!-- legend -->
   <div class="legend">
-    <span><b class="text-base-content/50">◯</b> original estimate</span>
-    <span><b class="text-warning">△</b> re-estimate</span>
-    <span><b class="text-success">◉</b> on time</span>
-    <span><b class="text-error">▲</b> late</span>
-    <span><b class="text-base-content/40">◌</b><b class="dash-swatch"></b> forecast</span>
+    <span><b class="text-base-content/60">◯</b> original estimate</span>
+    <span><b class="text-ink-warning">△</b> re-estimate</span>
+    <span><b class="text-ink-success">◉</b> on time</span>
+    <span><b class="text-ink-error">▲</b> late</span>
+    <span><b class="text-base-content/50">◌</b><b class="dash-swatch"></b> forecast</span>
     <span><b>┣━</b> feature bar</span>
     <span><b class="ms-dia">◆</b> milestone</span>
     <span><b class="now-swatch"></b> today</span>
@@ -345,6 +347,8 @@ const bandStyle = computed(() => ({
 
 <style scoped>
 .macroplan {
+  --row-bg: var(--color-base-100);
+  --row-hover: color-mix(in oklab, var(--color-primary) 7%, var(--color-base-100));
   --name-w: 16rem;
   --wk: 3.5rem;
   --area-w: 0rem; /* set inline: 2rem once any Feature has an Area */
@@ -368,7 +372,7 @@ const bandStyle = computed(() => ({
   align-self: center;
   white-space: nowrap;
   overflow: visible;
-  font-size: 0.66rem;
+  font-size: 0.6875rem; /* 11px: BAND_CHAR is Fira Code's 0.6em advance at this size */
   font-weight: 600;
   line-height: 1;
   color: var(--color-base-content);
@@ -378,7 +382,7 @@ const bandStyle = computed(() => ({
   color: color-mix(in oklab, var(--color-base-content) 55%, var(--color-base-100));
 }
 .ms-unmet {
-  color: var(--color-error); /* unmet required features = a problem = red */
+  color: var(--color-ink-error); /* unmet required features = a problem = red */
   font-weight: 700;
 }
 .ms-lead {
@@ -395,7 +399,7 @@ const bandStyle = computed(() => ({
   background: var(--color-base-200);
   border-bottom: 1px solid var(--color-base-300);
   padding: 0.4rem 0.5rem;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -420,7 +424,7 @@ const bandStyle = computed(() => ({
   color: var(--color-primary);
 }
 .badge-now {
-  font-size: 0.58rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: var(--color-primary);
 }
@@ -456,7 +460,7 @@ const bandStyle = computed(() => ({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.62rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   color: color-mix(in oklab, var(--color-base-content) 70%, var(--color-base-100));
@@ -466,11 +470,25 @@ const bandStyle = computed(() => ({
   z-index: 30;
 }
 
+/* Reading guide: a long plan puts 26 weeks between a name and its note, so the
+   row under the pointer takes a faint brand tint, sticky name cell included. */
+.row {
+  display: contents;
+}
+.row:hover {
+  --row-bg: var(--row-hover);
+}
+.namecell,
+.cell,
+.learncell {
+  --cell-bg: var(--row-bg);
+  background-color: var(--cell-bg);
+}
+
 .namecell {
   position: sticky;
   left: var(--area-w);
   z-index: 10;
-  background: var(--color-base-100);
   display: flex;
   align-items: center;
   min-height: 2rem;
@@ -480,12 +498,25 @@ const bandStyle = computed(() => ({
   border-bottom: 1px solid var(--color-base-200);
 }
 .disclosure {
+  position: relative;
   flex: none;
   width: 1rem; /* one indent step, so a child's name lines up under its parent's */
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   line-height: 1;
   color: color-mix(in oklab, var(--color-base-content) 60%, var(--color-base-100));
   cursor: pointer;
+}
+/* 24×24 hit area (WCAG 2.5.8) around a glyph kept 1rem wide for the indent. */
+.disclosure::before {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  transform: translate(-50%, -50%);
+}
+.disclosure:hover {
+  color: var(--color-primary);
 }
 .disclosure:focus-visible {
   outline: 2px solid var(--color-primary);
@@ -494,8 +525,8 @@ const bandStyle = computed(() => ({
 .childcount {
   flex: none;
   margin-left: 0.3rem;
-  font-size: 0.7rem;
-  opacity: 0.5;
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
 }
 .out-of-order {
   flex: none;
@@ -557,7 +588,7 @@ const bandStyle = computed(() => ({
   line-height: 1;
   padding: 0 0.18rem;
   /* halo so the bar reads as passing behind, not through, the symbol */
-  background: var(--color-base-100);
+  background: var(--cell-bg);
   border-radius: 0.3rem;
 }
 
@@ -567,11 +598,11 @@ const bandStyle = computed(() => ({
   gap: 0.4rem;
   min-height: 2rem;
   padding: 0 0.6rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   border-bottom: 1px solid var(--color-base-200);
 }
 .learncell .muted {
-  opacity: 0.5;
+  color: var(--color-ink-muted);
 }
 .learncell .note {
   overflow: hidden;
@@ -587,9 +618,8 @@ const bandStyle = computed(() => ({
 }
 
 /* "today" — a neutral grey column (red is reserved for problems) */
-.cell.col-now,
-.cell.col-now .glyph {
-  background: color-mix(in oklab, var(--color-base-content) 7%, var(--color-base-100));
+.cell.col-now {
+  --cell-bg: color-mix(in oklab, var(--color-base-content) 7%, var(--row-bg));
 }
 .col-ms {
   border-left: 2px dashed color-mix(in oklab, var(--color-base-content) 30%, var(--color-base-100));
@@ -617,8 +647,8 @@ const bandStyle = computed(() => ({
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem 1.25rem;
-  font-size: 0.72rem;
-  opacity: 0.85;
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
 }
 .legend b {
   font-weight: 700;
