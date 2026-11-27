@@ -1,4 +1,4 @@
-# Macroplan TOML Format — v1
+# Macroplan TOML Format — v2
 
 The portable, tool-independent definition of a **Macroplan**: a week-by-week
 delivery plan that records what a team promised, every time an estimate slipped,
@@ -25,25 +25,30 @@ A file MAY declare the format version at the top level:
 macroplan_version = 1
 ```
 
-- **Optional.** An absent marker means the current version (`1`). Every existing
-  file therefore stays valid.
-- **Integer**, monotonically increasing. This document defines version **1**.
+- **Optional.** An absent marker means the current version (`2`). Every existing
+  file therefore stays valid: version 2 is version 1 plus nested Features.
+- **Integer**, monotonically increasing. This document defines version **2**.
+  Version **1** is the same format without nested Features (`parent`, `weeks`,
+  `reestimate_weeks`).
 - A consumer that understands version _N_ **MUST reject** a file declaring a
   version **greater than** _N_ (rather than silently mis-rendering it), and
   SHOULD accept any version ≤ _N_ it still supports.
 - The version is bumped only for a **breaking** change to the schema or render
   semantics below — a new optional field does not require a bump.
 
-Producers SHOULD emit `macroplan_version` so a file self-describes its target.
+Producers SHOULD emit `macroplan_version` so a file self-describes its target,
+and SHOULD emit the lowest version that describes the plan: `2` only when it
+uses `parent`, so v1-only tools keep reading every plan without children. A file
+that **declares** `1` and uses `parent` MUST be rejected.
 
 ## Top-level fields
 
-| Key                 | Required | Type          | Default                | Meaning                                                                               |
-| ------------------- | -------- | ------------- | ---------------------- | ------------------------------------------------------------------------------------- |
-| `macroplan_version` | no       | integer (`1`) | `1`                    | Format version (see above).                                                           |
-| `title`             | no       | string        | `"Untitled Macroplan"` | Display name of the plan.                                                             |
-| `start`             | no       | date          | auto-fit               | Left edge of the plan's week span. **Only extends** the span; never clips a feature.  |
-| `end`               | no       | date          | auto-fit               | Right edge of the plan's week span. **Only extends** the span; never clips a feature. |
+| Key                 | Required | Type               | Default                | Meaning                                                                               |
+| ------------------- | -------- | ------------------ | ---------------------- | ------------------------------------------------------------------------------------- |
+| `macroplan_version` | no       | integer (`1`, `2`) | `2`                    | Format version (see above).                                                           |
+| `title`             | no       | string             | `"Untitled Macroplan"` | Display name of the plan.                                                             |
+| `start`             | no       | date               | auto-fit               | Left edge of the plan's week span. **Only extends** the span; never clips a feature.  |
+| `end`               | no       | date               | auto-fit               | Right edge of the plan's week span. **Only extends** the span; never clips a feature. |
 
 Zero or more `[[feature]]` blocks and zero or more `[[milestone]]` blocks follow.
 
@@ -52,17 +57,20 @@ Zero or more `[[feature]]` blocks and zero or more `[[milestone]]` blocks follow
 A unit of work, read left-to-right as a story: where it started, what was first
 promised, every slip, and when it shipped.
 
-| Key           | Required | Type                                         | Default | Meaning                                                                                                                                    |
-| ------------- | -------- | -------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `name`        | **yes**  | non-empty string                             | —       | Identifies the feature; the **join key** for a milestone's `requires`.                                                                     |
-| `start`       | **yes**  | date                                         | —       | The week work began.                                                                                                                       |
-| `original`    | **yes**  | date                                         | —       | The **Original Estimate** — the immovable baseline all lateness is judged against ([ADR-0001](adr/0001-original-estimate-as-baseline.md)). |
-| `reestimates` | no       | array of dates                               | `[]`    | Each later week the estimate slipped to (a slip, `△`). Order-independent.                                                                  |
-| `delivered`   | no       | date                                         | —       | The week the feature actually shipped. Absent → still in flight.                                                                           |
-| `learning`    | no       | string                                       | —       | A post-delivery takeaway.                                                                                                                  |
-| `status`      | no       | `"on-track"` \| `"at-risk"` \| `"off-track"` | —       | In-flight confidence. Meaningful only while undelivered.                                                                                   |
-| `note`        | no       | string                                       | —       | A short note accompanying `status`.                                                                                                        |
-| `area`        | no       | non-empty string                             | —       | The **Area** this feature belongs to — a named group of features sharing a discipline or owner. Absent → ungrouped.                        |
+| Key                | Required              | Type                                         | Default | Meaning                                                                                                                                    |
+| ------------------ | --------------------- | -------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `name`             | **yes**               | non-empty string                             | —       | Identifies the feature; the **join key** for a milestone's `requires`.                                                                     |
+| `start`            | see _Nested Features_ | date                                         | —       | The week work began. In a chain, only its first leaf carries it.                                                                           |
+| `original`         | see _Nested Features_ | date                                         | —       | The **Original Estimate** — the immovable baseline all lateness is judged against ([ADR-0001](adr/0001-original-estimate-as-baseline.md)). |
+| `reestimates`      | no                    | array of dates                               | `[]`    | Each later week the estimate slipped to (a slip, `△`). Order-independent.                                                                  |
+| `parent`           | no                    | non-empty string                             | —       | The `name` of the parent Feature; makes this Feature a child (v2). Absent → top-level.                                                     |
+| `weeks`            | see _Nested Features_ | integer ≥ 1                                  | —       | A child's planned **Duration**, in weeks (v2).                                                                                             |
+| `reestimate_weeks` | no                    | array of integers ≥ 1                        | `[]`    | A child's re-estimated Durations, each longer than the one before (v2).                                                                    |
+| `delivered`        | no                    | date                                         | —       | The week the feature actually shipped. Absent → still in flight.                                                                           |
+| `learning`         | no                    | string                                       | —       | A post-delivery takeaway.                                                                                                                  |
+| `status`           | no                    | `"on-track"` \| `"at-risk"` \| `"off-track"` | —       | In-flight confidence. Meaningful only while undelivered.                                                                                   |
+| `note`             | no                    | string                                       | —       | A short note accompanying `status`.                                                                                                        |
+| `area`             | no                    | non-empty string                             | —       | The **Area** this feature belongs to — a named group of features sharing a discipline or owner. Absent → ungrouped.                        |
 
 **Constraint — unique names:** feature `name` values MUST be unique within a
 plan. Because milestone `requires` resolves by name, a duplicate would make a
@@ -125,6 +133,52 @@ area = "Communication"
   with the first one that appears in the file — a renderer never invents a
   capitalization the author didn't type.
 
+### Nested Features
+
+A Feature can be broken into child Features, which can have children of their
+own. A child names its parent with `parent`; nesting is never written with
+TOML's nested tables ([ADR-0004](adr/0004-nesting-by-parent-name.md)).
+
+```toml
+[[feature]]
+name = "Payments"
+area = "Platform"
+
+[[feature]]
+name = "Vendor contract"
+parent = "Payments"
+start = 2026-06-01   # the first leaf anchors the chain
+weeks = 2
+delivered = 2026-06-15
+
+[[feature]]
+name = "Integration"
+parent = "Payments"
+weeks = 3
+reestimate_weeks = [4]
+```
+
+**Siblings form a chain, in file order**: each one starts the week after the
+one before it ends. Which keys a Feature may carry depends on where it sits:
+
+| Position                                 | Carries                                                       | Must not carry                                                                             |
+| ---------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Top-level, no children                   | `start`, `original` (required), `reestimates`, `delivered`    | `weeks`, `reestimate_weeks`                                                                |
+| Parent (has children), at any depth      | `status`, `note`, `learning`; `area` if top-level             | `start`, `original`, `reestimates`, `delivered`, `weeks`, `reestimate_weeks` — all derived |
+| Child without children                   | `weeks` (required), `reestimate_weeks`, `delivered`           | `original`, `reestimates`, `area`                                                          |
+| First leaf of a top-level parent's chain | as a child, plus `start` (required) — the anchor of the chain | —                                                                                          |
+
+- **Exactly one `start` per tree**: on its first leaf in reading order. Every
+  other date in the tree follows from the Durations, so a deliberate gap
+  can't be confused with a typo.
+- **`reestimate_weeks` only grows.** Each value is longer than `weeks` and the
+  value before it — a Re-estimate is always a slip.
+- **`parent` resolves by name**, like `requires`; names stay unique at every
+  depth. A `parent` naming no feature, naming itself, or forming a cycle is
+  rejected.
+- **`area` belongs to the top-level Feature only.** Children sit in their
+  parent's Area.
+
 ### Status
 
 The enum `on-track` \| `at-risk` \| `off-track`. No other value is valid. Lateness
@@ -145,13 +199,17 @@ a part of the format as the fields:
      the `◯` (no separate original marker is drawn).
    - `▲` **delivered late** — a delivery after `original`; the `◯` baseline is
      **kept** alongside it.
+   - `◌` **forecast** — computed, in a chain only (rule 8). Drawn while
+     undelivered, and only when it differs from the latest estimate.
 3. **Bar extent.** A feature's bar runs from `start` to its furthest marker. A
    delivered bar ends at its delivery. An **overdue** feature (undelivered, and
    already past its furthest estimate relative to "now") keeps running to the
-   current week.
+   current week. When a Forecast lands after the latest estimate, the bar runs
+   **dashed** from the latest estimate to the `◌`.
 4. **Area banding.** Features are grouped into contiguous bands, one per Area.
    Bands appear in order of **first appearance** of the Area in the file;
-   within a band, features keep their authored order. Features with **no**
+   within a band, features keep their authored order. A top-level feature's
+   subtree moves with it, each parent directly followed by its children. Features with **no**
    `area` form a single unlabelled band rendered **first**. Grouping therefore
    reorders rows relative to the file — a plan with no Areas is the degenerate
    case where every feature sits in that leading band and nothing moves.
@@ -165,6 +223,30 @@ a part of the format as the fields:
    number of Areas.
 7. **"Now".** The current week (Monday of today) drives overdue extension and the
    "now" line. It is contextual, not stored in the file.
+8. **Chains (v2).** Within a top-level tree, two chains are derived from the
+   anchor `start`, walking the leaves in reading order:
+   - **Planned** — each leaf runs for `weeks` from the week after its
+     predecessor's Original Estimate; the last week is its **Original
+     Estimate**. Computed from the file alone, it never moves.
+   - **Real** — each leaf starts the week after the **latest** week any earlier
+     leaf occupies: its delivery, or its forecast while undelivered. Its
+     **forecast** is that start plus its latest Duration (the last
+     `reestimate_weeks` value, else `weeks`), minus one week. Each
+     `reestimate_weeks` value draws a `△` at the real start plus that Duration.
+     An early delivery pulls later leaves earlier, just as a late one pushes
+     them back.
+   - A leaf delivered while an earlier leaf in its chain is undelivered, or
+     delivered later, is **out of order**: drawn as recorded, and flagged.
+9. **Parents (v2).** A parent's start is its earliest child's start, its
+   Original Estimate is its last child's, and its forecast is the latest of its
+   children's. It is delivered once **every** child is, in the week the last of
+   them was delivered, and is judged on-time/late against its own derived
+   Original Estimate (rule 1). A parent never draws `△`. A milestone may require
+   a feature at any depth; requiring a parent means requiring its derived
+   delivery.
+10. **Folding.** A renderer may fold a parent's subtree. Fold state is a view
+    preference and is never stored in the file; folding never changes the week
+    span.
 
 ## Notes for implementers
 
@@ -180,10 +262,13 @@ a part of the format as the fields:
 ## See also
 
 - [CONTEXT.md](../CONTEXT.md) — the ubiquitous language (Feature, Original
-  Estimate, Re-estimate, Delivery, Milestone, Area, Week, Status, Learning).
+  Estimate, Re-estimate, Delivery, Milestone, Area, Week, Status, Learning,
+  Duration, Forecast).
 - [ADR-0001](adr/0001-original-estimate-as-baseline.md) — why lateness is judged
   against the Original Estimate.
 - [ADR-0002](adr/0002-local-first-no-backend.md) — why the `.toml` file is the
   portable source of truth.
 - [ADR-0003](adr/0003-area-is-a-container-not-a-tag.md) — why a feature belongs
   to at most one Area.
+- [ADR-0004](adr/0004-nesting-by-parent-name.md) — why a child names its parent
+  with a flat key rather than nested tables.

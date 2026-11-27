@@ -2,14 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://macroplan.apoena.dev/macroplan.schema.json",
   "title": "Macroplan",
-  "description": "A week-by-week delivery plan. Portable TOML format v1 — see docs/format.md. Validates the TOML-decoded structure; dates are TOML date literals, surfaced to JSON Schema as date-formatted strings.",
+  "description": "A week-by-week delivery plan. Portable TOML format v2 — see docs/format.md. Validates the TOML-decoded structure; dates are TOML date literals, surfaced to JSON Schema as date-formatted strings.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "macroplan_version": {
-      "description": "Format version. Omit for the current version (1). A newer version must be rejected by a consumer that only understands 1.",
+      "description": "Format version. Omit for the current version (2). Version 2 adds nested Features (`parent`, `weeks`, `reestimate_weeks`); a plan without them is also a valid version 1 file. A consumer must reject a version newer than it understands.",
       "type": "integer",
-      "const": 1
+      "enum": [1, 2]
     },
     "title": {
       "description": "Display name of the plan. Defaults to \"Untitled Macroplan\" when absent.",
@@ -28,12 +28,16 @@
     "feature": {
       "description": "The features of the plan. Written as [[feature]] blocks. Names must be unique.",
       "type": "array",
-      "items": { "$ref": "#/$defs/feature" }
+      "items": {
+        "$ref": "#/$defs/feature"
+      }
     },
     "milestone": {
       "description": "Dated checkpoints. Written as [[milestone]] blocks.",
       "type": "array",
-      "items": { "$ref": "#/$defs/milestone" }
+      "items": {
+        "$ref": "#/$defs/milestone"
+      }
     }
   },
   "$defs": {
@@ -45,7 +49,7 @@
     "feature": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "start", "original"],
+      "required": ["name"],
       "properties": {
         "name": {
           "description": "Identifies the feature; the join key for a milestone's `requires`. Must be unique within the plan.",
@@ -53,17 +57,19 @@
           "minLength": 1
         },
         "start": {
-          "description": "The week work began.",
+          "description": "The week work began. On a top-level Feature without children: required. In a chain: only on its first leaf, where it anchors the whole chain.",
           "$ref": "#/$defs/date"
         },
         "original": {
-          "description": "The Original Estimate — the immovable baseline all lateness is judged against (ADR-0001).",
+          "description": "The Original Estimate — the immovable baseline all lateness is judged against (ADR-0001). Top-level Features without children only; a child's is derived from its `weeks`.",
           "$ref": "#/$defs/date"
         },
         "reestimates": {
-          "description": "Each later week the estimate slipped to. Order-independent.",
+          "description": "Each later week the estimate slipped to. Order-independent. Top-level Features without children only; a child uses `reestimate_weeks`.",
           "type": "array",
-          "items": { "$ref": "#/$defs/date" }
+          "items": {
+            "$ref": "#/$defs/date"
+          }
         },
         "delivered": {
           "description": "The week the feature actually shipped. Absent means still in flight.",
@@ -82,11 +88,30 @@
           "type": "string"
         },
         "area": {
-          "description": "The Area this feature belongs to — a named group sharing a discipline or owner. Omit for ungrouped. Matched case-insensitively after trimming; a feature belongs to at most one Area (ADR-0003).",
+          "description": "The Area this feature belongs to — a named group sharing a discipline or owner. Omit for ungrouped. Matched case-insensitively after trimming; a feature belongs to at most one Area (ADR-0003). Top-level Features only — children sit in their parent's Area.",
           "type": "string",
           "minLength": 1
+        },
+        "parent": {
+          "description": "Name of the parent Feature, making this one a child (ADR-0004). Siblings chain in file order: each starts the week after the one before ends. Requires format version 2.",
+          "type": "string",
+          "minLength": 1
+        },
+        "weeks": {
+          "description": "A child's planned Duration in whole weeks. Its Original Estimate is the last week of this Duration, counted from the end of the previous sibling.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "reestimate_weeks": {
+          "description": "A child's re-estimated Durations, each longer than the one before (a Re-estimate is always a slip). Each `△` lands at the child's real start plus that Duration.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
-      }
+      },
+      "description": "A Feature. Which date/Duration keys it may carry depends on its place in the tree (see docs/format.md): a top-level Feature without children needs `start` and `original`; a child needs `weeks` (and the first leaf of a chain also `start`); a parent carries no dates — they are derived from its children. The schema checks shape only; consumers enforce these positional rules."
     },
     "milestone": {
       "type": "object",
@@ -105,7 +130,9 @@
         "requires": {
           "description": "Feature names that must be delivered on/before `week` to meet the milestone.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       }
     }
