@@ -34,3 +34,78 @@
   /* Secondary text: 5.4:1 light, 5.7:1 dark — the floor for small labels. */
   --color-ink-muted: color-mix(in oklab, var(--color-base-content) 60%, var(--color-base-100));
 }
+
+/* ── Motion ────────────────────────────────────────────────────────────────
+   One rhythm for every animation. This is a tool people use daily, so motion
+   stays short and only marks where something came from, what changed, or
+   that an action registered. Exits run at ~70% of their enter. */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-press: 100ms;
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-exit-fast: 100ms;
+  --dur-exit-base: 140ms;
+}
+
+/* Press: the button gives under the pointer. DaisyUI's 200ms colour fade is
+   brought into the shared rhythm. */
+.btn {
+  transition-property: color, background-color, border-color, box-shadow, scale;
+  transition-duration: var(--dur-press);
+  transition-timing-function: var(--ease-out);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .btn:active:not(:disabled, .btn-disabled) {
+    scale: 0.97;
+    translate: none;
+  }
+}
+
+/* Plan switcher dropdown: grows from its trigger at the top left. */
+.dropdown-content {
+  transform-origin: top left;
+  scale: 97%;
+  transition-duration: var(--dur-exit-fast);
+  transition-timing-function: var(--ease-out);
+  animation: none;
+}
+.dropdown:focus-within .dropdown-content,
+.dropdown.dropdown-open .dropdown-content {
+  scale: 100%;
+  transition-duration: var(--dur-fast);
+}
+
+/* Delete confirmation: a small rise and fade instead of DaisyUI's 300ms. */
+.modal {
+  transition-property: visibility, background-color, opacity;
+  transition-duration: var(--dur-exit-base);
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+.modal .modal-box {
+  translate: 0 8px;
+  scale: 98%;
+  transition-property: translate, scale, opacity;
+  transition-duration: var(--dur-exit-base);
+  transition-timing-function: var(--ease-out);
+}
+.modal.modal-open {
+  transition-duration: var(--dur-base);
+}
+.modal.modal-open .modal-box {
+  translate: 0;
+  scale: 1;
+  transition-duration: var(--dur-base);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown-content,
+  .dropdown:focus-within .dropdown-content,
+  .modal .modal-box,
+  .modal.modal-open .modal-box {
+    scale: none;
+    translate: none;
+  }
+}
