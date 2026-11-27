@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue"
 import { chordKeys, fuzzyScore, type Chord } from "../composables/shortcuts"
+import { useMedia, TOUCH } from "../composables/useMedia"
 
 export interface Command {
   id: string
@@ -19,6 +20,9 @@ const dialog = ref<HTMLDialogElement>()
 const input = ref<HTMLInputElement>()
 const listEl = ref<HTMLElement>()
 const query = ref("")
+// On touch the list is the interface: focusing the field would raise the
+// on-screen keyboard over half of it. The dialog takes focus instead.
+const touch = useMedia(TOUCH)
 const active = ref(0)
 
 // Empty query: the authored order, grouped. Typed query: one list, best first,
@@ -46,7 +50,7 @@ watch(
       active.value = 0
       d.showModal()
       await nextTick()
-      input.value?.focus()
+      if (!touch.value) input.value?.focus()
     } else if (!open && d.open) {
       d.close()
     }
@@ -112,6 +116,7 @@ function onDialogClick(e: MouseEvent) {
     ref="dialog"
     class="palette"
     aria-label="Command palette"
+    :autofocus="touch || undefined"
     @cancel.prevent="emit('close')"
     @click="onDialogClick"
   >
@@ -211,7 +216,7 @@ function onDialogClick(e: MouseEvent) {
 .panel {
   display: flex;
   flex-direction: column;
-  max-height: min(32rem, 76vh);
+  max-height: min(32rem, 76dvh);
   border: 1px solid var(--color-base-300);
   border-radius: var(--radius-box);
   background: var(--color-base-100);
@@ -346,6 +351,14 @@ kbd {
 .foot kbd {
   min-width: 1.25rem;
   height: 1.25rem;
+}
+/* No keyboard to press them with. */
+@media (hover: none) and (pointer: coarse) {
+  .chord,
+  .esc,
+  .foot {
+    display: none;
+  }
 }
 @media (max-width: 40rem) {
   .palette {
