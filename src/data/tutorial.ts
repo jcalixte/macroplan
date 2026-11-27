@@ -28,7 +28,7 @@ start = ${w(-7)}
 original = ${w(-5)}
 reestimates = [${w(-4)}, ${w(-3)}]
 delivered = ${w(-2)}
-learning = "Vendor lead time was the real constraint."`
+learning = "We lost two weeks waiting on the vendor's sandbox keys."`
 
   const inFlight = `[[feature]]
 name = "Dashboard"
@@ -94,8 +94,8 @@ ${auth1}
 # When a Feature will miss its estimate, add a Re-estimate: \`reestimates\`
 # lists the later weeks, each drawn △. The Original Estimate ◯ stays put.
 # \`delivered\` records the week it shipped: ◉ on or before the Original
-# Estimate, ▲ after it. Late is always judged against the first promise,
-# never against a Re-estimate. Once delivered, write down the \`learning\`.
+# Estimate, ▲ after it. Only the Original Estimate decides on time or late.
+# Once delivered, write down the \`learning\`.
 #
 # Try: set Auth's \`delivered\` one week later and watch its ◉ become ▲.
 ${NEXT}
