@@ -50,7 +50,7 @@ that **declares** `1` and uses `parent` MUST be rejected.
 | `start`             | no       | date               | auto-fit               | Left edge of the plan's week span. **Only extends** the span; never clips a feature.  |
 | `end`               | no       | date               | auto-fit               | Right edge of the plan's week span. **Only extends** the span; never clips a feature. |
 
-Zero or more `[[feature]]`, `[[milestone]]` and `[[unavailable]]` blocks follow.
+Zero or more `[[feature]]`, `[[milestone]]` and `[[break]]` blocks follow.
 
 ## `[[feature]]`
 
@@ -91,12 +91,12 @@ A dated checkpoint that depends on a set of features being delivered by then.
 A `requires` entry that names no existing feature counts as **unmet** (it can
 never be satisfied) — useful for catching typos.
 
-## `[[unavailable]]`
+## `[[break]]`
 
 A run of weeks when the whole team is off: a holiday, a shutdown, an offsite.
 
 ```toml
-[[unavailable]]
+[[break]]
 name = "Christmas break"
 from = 2026-12-21
 to = 2027-01-01
@@ -108,8 +108,8 @@ to = 2027-01-01
 | `from` | **yes**  | date             | —            | The first week off.           |
 | `to`   | no       | date             | same as from | The last week off, inclusive. |
 
-`to` before `from` (by week) is rejected. Periods may overlap. An unavailable
-period is **drawn only**: it moves no authored date, no Duration, no Forecast,
+`to` before `from` (by week) is rejected. Breaks may overlap. A Break is
+**drawn only**: it moves no authored date, no Duration, no Forecast,
 and lateness is still judged against `original`. It was added after version
 `2` as an optional block, so it does not bump the version.
 
@@ -243,8 +243,8 @@ a part of the format as the fields:
    is undelivered, delivered _after_ the milestone `week`, or names no existing
    feature. Areas do not scope this: a milestone may require features from any
    number of Areas.
-7. **Unavailable weeks.** Every week from `from` to `to` is shaded across all
-   rows and labelled with the period's `name`. Unavailable periods never
+7. **Breaks.** Every week from `from` to `to` is shaded across all
+   rows and labelled with the Break's `name`. Breaks never
    widen the span: only the weeks already in range are shaded. Use `end` to
    pad a plan out to a holiday that falls after its last marker.
 8. **"Now".** The current week (Monday of today) drives overdue extension and the

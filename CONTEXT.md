@@ -52,9 +52,9 @@ _Avoid_: folder, stream, workstream, silo, track (collides with the on-track/off
 A column of the plan: one real calendar week, identified and labelled by the date of its first workday (Monday). Columns run contiguously from the earliest Feature start to the last marker or Milestone — empty weeks in between are still drawn. An optional authored **start**/**end** widens this span with lead-in or trailing empty Weeks; it only ever extends the range, never narrowing it or hiding a Feature.
 _Avoid_: column, period, sprint
 
-**Unavailable week**:
-A **Week** when the whole team is off (a holiday, a shutdown, an offsite), named by the period it belongs to. Shaded across every row. Pure display: it moves no date, no **Duration** and no **Forecast**, and never widens the plan's span.
-_Avoid_: holiday, time off, blackout, freeze
+**Break**:
+A named run of **Weeks** when the whole team is off: a holiday, a shutdown, an offsite. Shaded across every row. Pure display: it moves no date, no **Duration** and no **Forecast**, and never widens the plan's span.
+_Avoid_: unavailability, holiday, time off, blackout, freeze
 
 **Now line**:
 A vertical line marking the current week across the whole plan — the at-a-glance "where are we right now".
@@ -77,7 +77,7 @@ _Avoid_: schema version, file version, app version
 - `△` Re-estimate (a slip to a later week)
 - `▲` delivered late (after Original Estimate)
 - `◌` Forecast (computed, drawn muted), shown only when it differs from the latest estimate
-- `▨` an **Unavailable week** (hatched column)
+- `▨` a **Break** week (hatched column)
 - `┄` the stretch of a bar from the latest estimate to the Forecast
 
 ## Relationships

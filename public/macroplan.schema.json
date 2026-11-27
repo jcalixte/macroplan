@@ -39,11 +39,11 @@
         "$ref": "#/$defs/milestone"
       }
     },
-    "unavailable": {
-      "description": "Weeks the whole team is off (holidays, shutdown, offsite). Written as [[unavailable]] blocks. Drawn only: moves no date, Duration or Forecast, and never widens the plan's span.",
+    "break": {
+      "description": "Weeks the whole team is off (holidays, shutdown, offsite). Written as [[break]] blocks. Drawn only: moves no date, Duration or Forecast, and never widens the plan's span.",
       "type": "array",
       "items": {
-        "$ref": "#/$defs/unavailable"
+        "$ref": "#/$defs/break"
       }
     }
   },
@@ -143,7 +143,7 @@
         }
       }
     },
-    "unavailable": {
+    "break": {
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "from"],

@@ -21,7 +21,7 @@ export interface CompletionContext {
   items: Completion[]
 }
 
-type Block = "plan" | "feature" | "milestone" | "unavailable"
+type Block = "plan" | "feature" | "milestone" | "break"
 
 const PLAN_KEYS: Completion[] = [
   { label: "title", insert: "title = ", detail: "plan title" },
@@ -54,7 +54,7 @@ const MILESTONE_KEYS: Completion[] = [
   { label: "requires", insert: "requires = ", detail: "list of feature names" },
 ]
 
-const UNAVAILABLE_KEYS: Completion[] = [
+const BREAK_KEYS: Completion[] = [
   { label: "name", insert: "name = ", detail: "required — e.g. Christmas break" },
   { label: "from", insert: "from = ", detail: "first week off — date, required" },
   { label: "to", insert: "to = ", detail: "last week off — date, optional" },
@@ -64,10 +64,10 @@ const HEADERS: Completion[] = [
   { label: "[[feature]]", insert: "[[feature]]", detail: "new feature", filter: "feature" },
   { label: "[[milestone]]", insert: "[[milestone]]", detail: "new milestone", filter: "milestone" },
   {
-    label: "[[unavailable]]",
-    insert: "[[unavailable]]",
+    label: "[[break]]",
+    insert: "[[break]]",
     detail: "weeks the team is off",
-    filter: "unavailable",
+    filter: "break",
   },
 ]
 
@@ -157,7 +157,7 @@ export function getCompletions(
       plan: PLAN_KEYS,
       feature: FEATURE_KEYS,
       milestone: MILESTONE_KEYS,
-      unavailable: UNAVAILABLE_KEYS,
+      break: BREAK_KEYS,
     }[block]
     const taken = presentKeys(source, lineStart, block)
     const remaining = keys.filter((k) => !taken.has(k.label))
@@ -220,7 +220,7 @@ function filter(items: Completion[], word: string): Completion[] {
   return items.filter((i) => (i.filter ?? i.label).toLowerCase().startsWith(w))
 }
 
-const HEADER_RE = /^[ \t]*\[\[(feature|milestone|unavailable)\]\]/gm
+const HEADER_RE = /^[ \t]*\[\[(feature|milestone|break)\]\]/gm
 
 /** The block owning the line at `lineStart` — 'plan' before the first header. */
 function currentBlock(source: string, lineStart: number): Block {
@@ -286,7 +286,7 @@ function areaNames(source: string): string[] {
 }
 
 function featureNames(source: string): string[] {
-  const re = /^[ \t]*\[\[(feature|milestone|unavailable)\]\]|^[ \t]*name\s*=\s*"([^"]*)"/gm
+  const re = /^[ \t]*\[\[(feature|milestone|break)\]\]|^[ \t]*name\s*=\s*"([^"]*)"/gm
   const names = new Set<string>()
   let block: Block = "plan"
   let m: RegExpExecArray | null

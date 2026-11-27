@@ -7,7 +7,7 @@ import type {
   Marker,
   MilestoneLine,
   Band,
-  UnavailablePeriod,
+  Break,
 } from "./types"
 
 /**
@@ -43,9 +43,9 @@ export function buildPlan(raw: RawPlan, today: Date | string = new Date()): Plan
     return { name: m.name, week, requires: m.requires, unmet }
   })
 
-  // Drawn only: an unavailable period moves no date and never widens the span.
-  const unavailable = raw.unavailable.map(
-    (u): UnavailablePeriod => ({
+  // Drawn only: a Break moves no date and never widens the span.
+  const breaks = raw.breaks.map(
+    (u): Break => ({
       name: u.name,
       from: mondayOf(u.from),
       to: mondayOf(u.to ?? u.from),
@@ -71,7 +71,7 @@ export function buildPlan(raw: RawPlan, today: Date | string = new Date()): Plan
   }
   const nowInRange = weeks.length > 0 && nowWeek >= weeks[0] && nowWeek <= weeks[weeks.length - 1]
 
-  return { title: raw.title, weeks, rows, bands, milestones, unavailable, nowWeek, nowInRange }
+  return { title: raw.title, weeks, rows, bands, milestones, breaks, nowWeek, nowInRange }
 }
 
 const earliest = (a: WeekId, b: WeekId) => (a < b ? a : b)

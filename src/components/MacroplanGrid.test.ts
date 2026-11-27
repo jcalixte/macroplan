@@ -156,13 +156,13 @@ describe("MacroplanGrid — nested Features (F10, F11)", () => {
   })
 })
 
-describe("MacroplanGrid — unavailable weeks", () => {
+describe("MacroplanGrid — Breaks", () => {
   const source = `[[feature]]
 name = "X"
 start = 2026-06-01
 original = 2026-06-29
 
-[[unavailable]]
+[[break]]
 name = "Offsite"
 from = 2026-06-15
 to = 2026-06-22
@@ -170,12 +170,12 @@ to = 2026-06-22
   const offPlan = buildPlan(parseMacroplan(source), "2026-06-17")
   const w = mount(MacroplanGrid, { props: { plan: offPlan } })
 
-  it("hatches every cell of the unavailable weeks, header included", () => {
+  it("hatches every cell of the Break weeks, header included", () => {
     expect(w.findAll(".hcell.col-off")).toHaveLength(2)
     expect(w.findAll(".cell.col-off")).toHaveLength(2) // one row × two weeks
   })
 
-  it("keeps the now tint on an unavailable week", () => {
+  it("keeps the now tint on a Break week", () => {
     expect(w.find(".cell.col-now.col-off").exists()).toBe(true)
   })
 
@@ -183,10 +183,10 @@ to = 2026-06-22
     const flags = w.findAll(".off-flag")
     expect(flags).toHaveLength(1)
     expect(flags[0].text()).toContain("Offsite")
-    expect(w.find(".legend").text()).toContain("unavailable")
+    expect(w.find(".legend").text()).toContain("break")
   })
 
-  it("shows no legend entry when the plan has no unavailable weeks", () => {
-    expect(mountGrid().find(".legend").text()).not.toContain("unavailable")
+  it("shows no legend entry when the plan has no Breaks", () => {
+    expect(mountGrid().find(".legend").text()).not.toContain("break")
   })
 })

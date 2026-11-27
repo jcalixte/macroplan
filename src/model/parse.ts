@@ -66,7 +66,7 @@ const MilestoneSchema = v.object({
   ),
 })
 
-const UnavailableSchema = v.object({
+const BreakSchema = v.object({
   name: Name,
   from: Ymd,
   to: v.optional(Ymd),
@@ -103,9 +103,9 @@ export function parseMacroplan(source: string): RawPlan {
     milestones: asBlocks(data.milestone, "milestone").map((m, i) =>
       check(MilestoneSchema, m, blockWhere("milestone", m, i)),
     ),
-    unavailable: asBlocks(data.unavailable, "unavailable").map((u, i) => {
-      const where = blockWhere("unavailable", u, i)
-      const period = check(UnavailableSchema, u, where)
+    breaks: asBlocks(data.break, "break").map((u, i) => {
+      const where = blockWhere("break", u, i)
+      const period = check(BreakSchema, u, where)
       if (period.to != null && mondayOf(period.to) < mondayOf(period.from)) {
         throw new PlanParseError(`${where}: \`to\` is before \`from\``)
       }

@@ -136,9 +136,9 @@ const matrix = computed<Cell[][]>(() =>
   ),
 )
 
-/** The unavailable period covering a week, if any — the first one authored wins. */
+/** The Break covering a week, if any — the first one authored wins. */
 function offAt(w: WeekId) {
-  return props.plan.unavailable.find((u) => w >= u.from && w <= u.to)
+  return props.plan.breaks.find((u) => w >= u.from && w <= u.to)
 }
 
 // Per-week column metadata for the header + the now / milestone / off column rules.
@@ -172,7 +172,7 @@ interface FlagItem {
   title: string
 }
 
-// Label flags above the axis — milestones and unavailable periods — greedily
+// Label flags above the axis — milestones and Breaks — greedily
 // stacked onto extra rows so labels in nearby weeks never overlap.
 const milestoneFlags = computed(() => {
   const ms: FlagItem[] = props.plan.milestones.map((m) => ({
@@ -187,7 +187,7 @@ const milestoneFlags = computed(() => {
   }))
   // An off period is flagged at its first visible week, so one that began
   // before the plan's span is still labelled.
-  const off: FlagItem[] = props.plan.unavailable.flatMap((u) => {
+  const off: FlagItem[] = props.plan.breaks.flatMap((u) => {
     const i = weeks.value.findIndex((w) => w >= u.from && w <= u.to)
     if (i < 0) return []
     const span = u.from === u.to ? weekLabel(u.from) : `${weekLabel(u.from)} – ${weekLabel(u.to)}`
@@ -198,7 +198,7 @@ const milestoneFlags = computed(() => {
         unmet: [],
         col: i + WEEK_COL_1,
         text: `▨ ${u.name}`,
-        title: `${u.name} — unavailable ${span}`,
+        title: `${u.name} — break, ${span}`,
       },
     ]
   })
@@ -255,7 +255,7 @@ const bandStyle = computed(() => ({
         :key="'h-' + c.w"
         class="hcell wkhead"
         :class="[colClass(ci), { 'now-head': c.isNow }]"
-        :title="c.off ? `${c.off} — unavailable` : undefined"
+        :title="c.off ? `${c.off} — break` : undefined"
       >
         <span class="wklabel">{{ c.label }}</span>
         <span v-if="c.isNow" class="badge-now">now</span>
@@ -339,7 +339,7 @@ const bandStyle = computed(() => ({
     <span><b>┣━</b> feature bar</span>
     <span><b class="ms-dia">◆</b> milestone</span>
     <span><b class="now-swatch"></b> today</span>
-    <span v-if="plan.unavailable.length"><b class="off-swatch"></b> unavailable</span>
+    <span v-if="plan.breaks.length"><b class="off-swatch"></b> break</span>
   </div>
 </template>
 
@@ -595,7 +595,7 @@ const bandStyle = computed(() => ({
   border-left: 2px dashed color-mix(in oklab, var(--color-base-content) 30%, var(--color-base-100));
 }
 
-/* Unavailable weeks: hatched, so they still read when they are also "now". */
+/* Break weeks: hatched, so they still read when they are also "now". */
 .cell.col-off,
 .hcell.col-off {
   background-image: repeating-linear-gradient(

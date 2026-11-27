@@ -49,7 +49,7 @@ describe("completion context", () => {
     // Directly under the last property: nothing left to add ⇒ no popup.
     expect(getCompletions(...atCaret(`${filled}\n|`))).toBeNull()
     // A blank line signals a new block is wanted ⇒ offer the headers.
-    expect(labelsAt(`${filled}\n\n|`)).toEqual(["[[feature]]", "[[milestone]]", "[[unavailable]]"])
+    expect(labelsAt(`${filled}\n\n|`)).toEqual(["[[feature]]", "[[milestone]]", "[[break]]"])
   })
 
   it("volunteers headers after a blank line even with keys still open", () => {
@@ -58,13 +58,13 @@ describe("completion context", () => {
       "requires",
       "[[feature]]",
       "[[milestone]]",
-      "[[unavailable]]",
+      "[[break]]",
     ])
   })
 
-  it("offers unavailable keys and dates inside an [[unavailable]] block", () => {
-    expect(labelsAt("[[unavailable]]\n|")).toEqual(["name", "from", "to"])
-    expect(labelsAt('[[unavailable]]\nname = "Break"\nfrom = 2026-12-21\n|')).toEqual(["to"])
+  it("offers break keys and dates inside an [[break]] block", () => {
+    expect(labelsAt("[[break]]\n|")).toEqual(["name", "from", "to"])
+    expect(labelsAt('[[break]]\nname = "Break"\nfrom = 2026-12-21\n|')).toEqual(["to"])
   })
 
   it("excludes keys already written in the current block", () => {
@@ -124,7 +124,7 @@ describe("date completion", () => {
 
   it("offers the same for plan dates and milestone weeks", () => {
     expect(datesAt("end = |")!.items.map((i) => i.insert)).toEqual(["2026-06-19", "2026-"])
-    expect(datesAt("[[unavailable]]\nto = |")!.items.map((i) => i.insert)).toEqual([
+    expect(datesAt("[[break]]\nto = |")!.items.map((i) => i.insert)).toEqual([
       "2026-06-19",
       "2026-",
     ])
@@ -185,7 +185,7 @@ describe("bracket header block separation", () => {
     expect(insertsAt('[[feature]]\nname = "X"\n[|')).toEqual([
       "\n[[feature]]",
       "\n[[milestone]]",
-      "\n[[unavailable]]",
+      "\n[[break]]",
     ])
   })
 
@@ -193,12 +193,12 @@ describe("bracket header block separation", () => {
     expect(insertsAt('[[feature]]\nname = "X"\n\n[|')).toEqual([
       "[[feature]]",
       "[[milestone]]",
-      "[[unavailable]]",
+      "[[break]]",
     ])
   })
 
   it("adds no leading newline at the very top of the document", () => {
-    expect(insertsAt("[|")).toEqual(["[[feature]]", "[[milestone]]", "[[unavailable]]"])
+    expect(insertsAt("[|")).toEqual(["[[feature]]", "[[milestone]]", "[[break]]"])
   })
 })
 
