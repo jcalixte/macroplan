@@ -110,3 +110,48 @@ describe("F8 — Area gutter", () => {
     expect(label.attributes("title")).toBe("Change management")
   })
 })
+
+describe("MacroplanGrid — nested Features (F10, F11)", () => {
+  const nested =
+    `[[feature]]\nname = "Ops"\nstart = 2026-06-01\noriginal = 2026-06-08\narea = "Platform"\n` +
+    `[[feature]]\nname = "Payments"\narea = "Platform"\n` +
+    `[[feature]]\nname = "Vendor contract"\nparent = "Payments"\nstart = 2026-06-01\nweeks = 2\ndelivered = 2026-06-15\n` +
+    `[[feature]]\nname = "Integration"\nparent = "Payments"\nweeks = 3\n`
+  const nestedPlan = buildPlan(parseMacroplan(nested), "2026-06-17")
+  const mountNested = (expanded: string[] = []) =>
+    mount(MacroplanGrid, { props: { plan: nestedPlan, expanded: new Set(expanded) } })
+  const names = (w: ReturnType<typeof mountNested>) =>
+    w.findAll(".namecell .truncate").map((n) => n.text())
+
+  it("shows a parent collapsed by default, with a disclosure and its child count", () => {
+    const w = mountNested()
+    expect(names(w)).toEqual(["Ops", "Payments"])
+    const button = w.find(".disclosure")
+    expect(button.attributes("aria-expanded")).toBe("false")
+    expect(button.attributes("aria-label")).toBe("Unfold Payments")
+    expect(w.find(".childcount").text()).toBe("(2)")
+  })
+
+  it("asks to toggle the parent when its disclosure is clicked", async () => {
+    const w = mountNested()
+    await w.find(".disclosure").trigger("click")
+    expect(w.emitted("toggle")).toEqual([["Payments"]])
+  })
+
+  it("unfolds children beneath an expanded parent, indented, and respans the gutter", () => {
+    const w = mountNested(["Payments"])
+    expect(names(w)).toEqual(["Ops", "Payments", "Vendor contract", "Integration"])
+    expect(w.findAll(".namecell")[2].attributes("style")).toContain("padding-left: 1.6rem")
+    expect(w.find(".areacell").attributes("style")).toContain("grid-row: 2 / span 4")
+  })
+
+  it("respans the gutter over only the visible rows when folded", () => {
+    expect(mountNested().find(".areacell").attributes("style")).toContain("grid-row: 2 / span 2")
+  })
+
+  it("draws the Forecast ◌ and a dashed bar up to it", () => {
+    const w = mountNested(["Payments"])
+    expect(w.text()).toContain("◌")
+    expect(w.findAll(".bar.dashed").length).toBeGreaterThan(0)
+  })
+})

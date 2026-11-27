@@ -12,6 +12,9 @@ const StoredPlanSchema = v.object({
   id: v.string(),
   name: v.string(),
   source: v.string(),
+  // Parent Features unfolded in the grid. A view preference, so it lives here
+  // beside the plan and never in its portable `.toml` (F11).
+  expanded: v.optional(v.array(v.string())),
 })
 export type StoredPlan = v.InferOutput<typeof StoredPlanSchema>
 
@@ -135,6 +138,14 @@ export function useMacroplan() {
     source,
     plan: computed(() => parsed.value.plan ?? lastGood.value),
     error: computed(() => parsed.value.error),
+    expanded: computed<ReadonlySet<string>>(() => new Set(active.value.expanded ?? [])),
+    toggleExpanded: (name: string) => {
+      const p = active.value
+      const open = new Set(p.expanded ?? [])
+      if (open.has(name)) open.delete(name)
+      else open.add(name)
+      p.expanded = [...open]
+    },
     plans: computed(() => lib.value.plans.map((p) => ({ id: p.id, name: p.name }))),
     activeId: computed(() => lib.value.activeId),
     selectPlan: (id: string) => {

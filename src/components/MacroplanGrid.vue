@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import type { Plan, FeatureRow, MarkerKind } from "../model/types"
+import { visibleRows } from "../model/plan"
 import { weekLabel, type WeekId } from "../model/week"
 
-const props = defineProps<{ plan: Plan }>()
+const props = withDefaults(defineProps<{ plan: Plan; expanded?: ReadonlySet<string> }>(), {
+  expanded: () => new Set<string>(),
+})
+const emit = defineEmits<{ toggle: [name: string] }>()
+
+// The rows and Area bands actually drawn: folded parents hide their subtree,
+// and band spans are recounted over what is shown (F11).
+const shown = computed(() => visibleRows(props.plan, props.expanded))
 
 type Tone = "success" | "warning" | "error" | "neutral"
 
@@ -12,12 +20,14 @@ const GLYPH: Record<MarkerKind, string> = {
   reestimate: "△",
   "delivered-on-time": "◉",
   "delivered-late": "▲",
+  forecast: "◌",
 }
 const MARKER_CLASS: Record<MarkerKind, string> = {
   original: "text-base-content/50",
   reestimate: "text-warning",
   "delivered-on-time": "text-success",
   "delivered-late": "text-error",
+  forecast: "text-base-content/40", // computed, not committed — drawn muted
 }
 // When two markers land on the same week, the higher rank owns the cell.
 const RANK: Record<MarkerKind, number> = {
@@ -25,6 +35,7 @@ const RANK: Record<MarkerKind, number> = {
   "delivered-on-time": 3,
   reestimate: 2,
   original: 1,
+  forecast: 0,
 }
 const TONE_TEXT: Record<Tone, string> = {
   success: "text-success",
@@ -91,6 +102,7 @@ interface Cell {
   // how far the bar line runs within this cell: none, center→right,
   // left→center, or full width
   line: "none" | "right" | "left" | "full"
+  dashed: boolean // past the latest estimate, up to the Forecast
   isStart: boolean
   glyph: string
   glyphCls: string
@@ -98,7 +110,7 @@ interface Cell {
 
 // rows × weeks render matrix, computed once.
 const matrix = computed<Cell[][]>(() =>
-  props.plan.rows.map((row) =>
+  shown.value.rows.map((row) =>
     weeks.value.map((w) => {
       const m = markerAt(row, w)
       const inBar = w >= row.startWeek && w <= row.barEndWeek
@@ -108,8 +120,14 @@ const matrix = computed<Cell[][]>(() =>
         const isEnd = w === row.barEndWeek
         line = isStart && isEnd ? "none" : isStart ? "right" : isEnd ? "left" : "full"
       }
+      const dashed =
+        row.committedEndWeek != null &&
+        row.forecastWeek != null &&
+        w > row.committedEndWeek &&
+        w <= row.forecastWeek
       return {
         line,
+        dashed,
         isStart: inBar && w === row.startWeek,
         glyph: m ? GLYPH[m] : "",
         glyphCls: m ? MARKER_CLASS[m] : "",
@@ -197,7 +215,7 @@ const bandStyle = computed(() => ({
       <!-- Area gutter: one cell per band, spanning its Features. Explicitly
            placed, so the auto-flowed feature rows below skip column 1. -->
       <div
-        v-for="b in plan.bands"
+        v-for="b in shown.bands"
         :key="'band-' + b.start"
         class="areacell"
         :style="{ gridRow: `${b.start + 2} / span ${b.span}` }"
@@ -206,9 +224,30 @@ const bandStyle = computed(() => ({
       </div>
 
       <!-- feature rows -->
-      <template v-for="(row, ri) in plan.rows" :key="row.name">
-        <div class="namecell border-l-4" :class="TONE_BORDER[tone(row)]">
+      <template v-for="(row, ri) in shown.rows" :key="row.name">
+        <div
+          class="namecell border-l-4"
+          :class="TONE_BORDER[tone(row)]"
+          :style="{ paddingLeft: `${0.6 + row.depth}rem` }"
+        >
+          <button
+            v-if="row.childCount"
+            type="button"
+            class="disclosure"
+            :aria-expanded="expanded.has(row.name)"
+            :aria-label="`${expanded.has(row.name) ? 'Fold' : 'Unfold'} ${row.name}`"
+            @click="emit('toggle', row.name)"
+          >
+            {{ expanded.has(row.name) ? "▾" : "▸" }}
+          </button>
           <span class="truncate" :title="row.name">{{ row.name }}</span>
+          <span v-if="row.childCount" class="childcount">({{ row.childCount }})</span>
+          <span
+            v-if="row.outOfOrder"
+            class="out-of-order text-warning"
+            title="Delivered before an earlier Feature in its chain"
+            >⚠</span
+          >
         </div>
         <div
           v-for="(cell, ci) in matrix[ri]"
@@ -216,7 +255,11 @@ const bandStyle = computed(() => ({
           class="cell"
           :class="colClass(ci)"
         >
-          <i v-if="cell.line !== 'none'" class="bar" :class="[cell.line, TONE_TEXT[tone(row)]]"></i>
+          <i
+            v-if="cell.line !== 'none'"
+            class="bar"
+            :class="[cell.line, TONE_TEXT[tone(row)], { dashed: cell.dashed }]"
+          ></i>
           <i v-if="cell.isStart" class="riser" :class="TONE_TEXT[tone(row)]"></i>
           <span v-if="cell.glyph" class="glyph" :class="cell.glyphCls">{{ cell.glyph }}</span>
         </div>
@@ -242,6 +285,7 @@ const bandStyle = computed(() => ({
     <span><b class="text-warning">△</b> re-estimate</span>
     <span><b class="text-success">◉</b> on time</span>
     <span><b class="text-error">▲</b> late</span>
+    <span><b class="text-base-content/40">◌</b><b class="dash-swatch"></b> forecast</span>
     <span><b>┣━</b> feature bar</span>
     <span><b class="ms-dia">◆</b> milestone</span>
     <span><b class="now-swatch"></b> today</span>
@@ -384,6 +428,29 @@ const bandStyle = computed(() => ({
   font-weight: 500;
   border-bottom: 1px solid var(--color-base-200);
 }
+.disclosure {
+  flex: none;
+  width: 1rem; /* one indent step, so a child's name lines up under its parent's */
+  font-size: 0.7rem;
+  line-height: 1;
+  color: color-mix(in oklab, var(--color-base-content) 60%, var(--color-base-100));
+  cursor: pointer;
+}
+.disclosure:focus-visible {
+  outline: 2px solid var(--color-primary);
+  border-radius: 0.2rem;
+}
+.childcount {
+  flex: none;
+  margin-left: 0.3rem;
+  font-size: 0.7rem;
+  opacity: 0.5;
+}
+.out-of-order {
+  flex: none;
+  margin-left: 0.3rem;
+  font-size: 0.75rem;
+}
 .namecell .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -418,6 +485,10 @@ const bandStyle = computed(() => ({
   left: 50%;
   right: 0;
 } /* starts at the first glyph, runs right */
+/* Past the latest estimate, up to the Forecast: computed, not committed. */
+.bar.dashed {
+  background: repeating-linear-gradient(to right, currentColor 0 4px, transparent 4px 7px);
+}
 .riser {
   position: absolute;
   left: 50%;
@@ -483,6 +554,15 @@ const bandStyle = computed(() => ({
 }
 .legend b {
   font-weight: 700;
+}
+.dash-swatch {
+  display: inline-block;
+  width: 1rem;
+  height: 2px;
+  margin-left: 0.2rem;
+  vertical-align: 0.2rem;
+  opacity: 0.55;
+  background: repeating-linear-gradient(to right, currentColor 0 4px, transparent 4px 7px);
 }
 .now-swatch {
   display: inline-block;

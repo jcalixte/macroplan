@@ -123,3 +123,31 @@ describe("useMacroplan — CRUD", () => {
     expect(m.plan.value).toBeNull() // no stale A render leaks through
   })
 })
+
+describe("useMacroplan — fold state (F11)", () => {
+  it("starts with every parent folded", () => {
+    expect(useMacroplan().expanded.value.size).toBe(0)
+  })
+
+  it("toggles a parent open and closed, per plan, and survives a reload", async () => {
+    const m = useMacroplan()
+    m.toggleExpanded("Payments")
+    expect(m.expanded.value.has("Payments")).toBe(true)
+    await nextTick()
+    expect(useMacroplan().expanded.value.has("Payments")).toBe(true) // reloaded from storage
+
+    m.newPlan()
+    expect(m.expanded.value.size).toBe(0) // another plan keeps its own fold state
+
+    m.selectPlan(m.plans.value[0].id)
+    m.toggleExpanded("Payments")
+    expect(m.expanded.value.has("Payments")).toBe(false)
+  })
+
+  it("never writes fold state into the plan's source", () => {
+    const m = useMacroplan()
+    const before = m.source.value
+    m.toggleExpanded("Payments")
+    expect(m.source.value).toBe(before)
+  })
+})

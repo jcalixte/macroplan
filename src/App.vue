@@ -7,7 +7,18 @@ import PlanEditor from "./components/PlanEditor.vue"
 import MacroplanGrid from "./components/MacroplanGrid.vue"
 import PlanSwitcher from "./components/PlanSwitcher.vue"
 
-const { source, plan, error, plans, activeId, selectPlan, newPlan, deletePlan } = useMacroplan()
+const {
+  source,
+  plan,
+  error,
+  expanded,
+  toggleExpanded,
+  plans,
+  activeId,
+  selectPlan,
+  newPlan,
+  deletePlan,
+} = useMacroplan()
 const { busy, toast, copyPng, downloadPng } = usePngExport()
 
 const exportRoot = ref<HTMLElement>()
@@ -135,7 +146,7 @@ function confirmDelete() {
       <section v-if="showMacroplan" class="min-h-0 flex-1 overflow-auto p-4">
         <div v-if="plan" ref="exportRoot" class="export-root">
           <h2 class="mb-3 text-sm font-semibold text-base-content/70">{{ plan.title }}</h2>
-          <MacroplanGrid :plan="plan" />
+          <MacroplanGrid :plan="plan" :expanded="expanded" @toggle="toggleExpanded" />
         </div>
         <p v-else class="text-sm text-base-content/60">
           Nothing to render yet — fix the source on the left.
