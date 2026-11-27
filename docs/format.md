@@ -50,7 +50,7 @@ that **declares** `1` and uses `parent` MUST be rejected.
 | `start`             | no       | date               | auto-fit               | Left edge of the plan's week span. **Only extends** the span; never clips a feature.  |
 | `end`               | no       | date               | auto-fit               | Right edge of the plan's week span. **Only extends** the span; never clips a feature. |
 
-Zero or more `[[feature]]` blocks and zero or more `[[milestone]]` blocks follow.
+Zero or more `[[feature]]`, `[[milestone]]` and `[[unavailable]]` blocks follow.
 
 ## `[[feature]]`
 
@@ -90,6 +90,28 @@ A dated checkpoint that depends on a set of features being delivered by then.
 
 A `requires` entry that names no existing feature counts as **unmet** (it can
 never be satisfied) — useful for catching typos.
+
+## `[[unavailable]]`
+
+A run of weeks when the whole team is off: a holiday, a shutdown, an offsite.
+
+```toml
+[[unavailable]]
+name = "Christmas break"
+from = 2026-12-21
+to = 2027-01-01
+```
+
+| Key    | Required | Type             | Default      | Meaning                       |
+| ------ | -------- | ---------------- | ------------ | ----------------------------- |
+| `name` | **yes**  | non-empty string | —            | Label of the period.          |
+| `from` | **yes**  | date             | —            | The first week off.           |
+| `to`   | no       | date             | same as from | The last week off, inclusive. |
+
+`to` before `from` (by week) is rejected. Periods may overlap. An unavailable
+period is **drawn only**: it moves no authored date, no Duration, no Forecast,
+and lateness is still judged against `original`. It was added after version
+`2` as an optional block, so it does not bump the version.
 
 ## Value types
 
@@ -199,7 +221,7 @@ a part of the format as the fields:
      the `◯` (no separate original marker is drawn).
    - `▲` **delivered late** — a delivery after `original`; the `◯` baseline is
      **kept** alongside it.
-   - `◌` **forecast** — computed, in a chain only (rule 8). Drawn while
+   - `◌` **forecast** — computed, in a chain only (rule 9). Drawn while
      undelivered, and only when it differs from the latest estimate.
 3. **Bar extent.** A feature's bar runs from `start` to its furthest marker. A
    delivered bar ends at its delivery. An **overdue** feature (undelivered, and
@@ -221,9 +243,13 @@ a part of the format as the fields:
    is undelivered, delivered _after_ the milestone `week`, or names no existing
    feature. Areas do not scope this: a milestone may require features from any
    number of Areas.
-7. **"Now".** The current week (Monday of today) drives overdue extension and the
+7. **Unavailable weeks.** Every week from `from` to `to` is shaded across all
+   rows and labelled with the period's `name`. Unavailable periods never
+   widen the span: only the weeks already in range are shaded. Use `end` to
+   pad a plan out to a holiday that falls after its last marker.
+8. **"Now".** The current week (Monday of today) drives overdue extension and the
    "now" line. It is contextual, not stored in the file.
-8. **Chains (v2).** Within a top-level tree, two chains are derived from the
+9. **Chains (v2).** Within a top-level tree, two chains are derived from the
    anchor `start`, walking the leaves in reading order:
    - **Planned** — each leaf runs for `weeks` from the week after its
      predecessor's Original Estimate; the last week is its **Original
@@ -237,14 +263,14 @@ a part of the format as the fields:
      them back.
    - A leaf delivered while an earlier leaf in its chain is undelivered, or
      delivered later, is **out of order**: drawn as recorded, and flagged.
-9. **Parents (v2).** A parent's start is its earliest child's start, its
-   Original Estimate is its last child's, and its forecast is the latest of its
-   children's. It is delivered once **every** child is, in the week the last of
-   them was delivered, and is judged on-time/late against its own derived
-   Original Estimate (rule 1). A parent never draws `△`. A milestone may require
-   a feature at any depth; requiring a parent means requiring its derived
-   delivery.
-10. **Folding.** A renderer may fold a parent's subtree. Fold state is a view
+10. **Parents (v2).** A parent's start is its earliest child's start, its
+    Original Estimate is its last child's, and its forecast is the latest of its
+    children's. It is delivered once **every** child is, in the week the last of
+    them was delivered, and is judged on-time/late against its own derived
+    Original Estimate (rule 1). A parent never draws `△`. A milestone may require
+    a feature at any depth; requiring a parent means requiring its derived
+    delivery.
+11. **Folding.** A renderer may fold a parent's subtree. Fold state is a view
     preference and is never stored in the file; folding never changes the week
     span.
 

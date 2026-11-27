@@ -38,6 +38,13 @@
       "items": {
         "$ref": "#/$defs/milestone"
       }
+    },
+    "unavailable": {
+      "description": "Weeks the whole team is off (holidays, shutdown, offsite). Written as [[unavailable]] blocks. Drawn only: moves no date, Duration or Forecast, and never widens the plan's span.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/unavailable"
+      }
     }
   },
   "$defs": {
@@ -133,6 +140,26 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "unavailable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "from"],
+      "properties": {
+        "name": {
+          "description": "Label of the period, e.g. \"Christmas break\".",
+          "type": "string",
+          "minLength": 1
+        },
+        "from": {
+          "description": "The first week off.",
+          "$ref": "#/$defs/date"
+        },
+        "to": {
+          "description": "The last week off, inclusive. Absent means the single week of `from`. Must not be before `from`.",
+          "$ref": "#/$defs/date"
         }
       }
     }

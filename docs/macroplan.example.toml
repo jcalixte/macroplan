@@ -103,6 +103,13 @@ parent = "Checkout flow"
 weeks = 2
 reestimate_weeks = [3]
 
+# Weeks the whole team is off. Drawn as hatched columns; they move no date.
+# `to` is optional (absent → the single week of `from`).
+[[unavailable]]
+name = "Summer offsite"
+from = 2026-07-27
+to = 2026-07-31
+
 # Milestones tie a due week to the features that must ship by then.
 [[milestone]]
 name = "Code freeze"
