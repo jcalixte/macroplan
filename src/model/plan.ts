@@ -1,5 +1,14 @@
 import { addWeeks, mondayOf, weekRange, type WeekId } from "./week"
-import type { RawPlan, RawFeature, Plan, FeatureRow, Marker, MilestoneLine, Band } from "./types"
+import type {
+  RawPlan,
+  RawFeature,
+  Plan,
+  FeatureRow,
+  Marker,
+  MilestoneLine,
+  Band,
+  UnavailablePeriod,
+} from "./types"
 
 /**
  * Derive the render-ready Plan from the raw model (component C2).
@@ -34,6 +43,15 @@ export function buildPlan(raw: RawPlan, today: Date | string = new Date()): Plan
     return { name: m.name, week, requires: m.requires, unmet }
   })
 
+  // Drawn only: an unavailable period moves no date and never widens the span.
+  const unavailable = raw.unavailable.map(
+    (u): UnavailablePeriod => ({
+      name: u.name,
+      from: mondayOf(u.from),
+      to: mondayOf(u.to ?? u.from),
+    }),
+  )
+
   // Range: earliest start to last marker/milestone (CONTEXT.md). Empty weeks drawn.
   // Optional authored `start`/`end` widen this span with lead-in / trailing weeks;
   // they only ever extend it — a Feature or marker outside them is never clipped.
@@ -53,7 +71,7 @@ export function buildPlan(raw: RawPlan, today: Date | string = new Date()): Plan
   }
   const nowInRange = weeks.length > 0 && nowWeek >= weeks[0] && nowWeek <= weeks[weeks.length - 1]
 
-  return { title: raw.title, weeks, rows, bands, milestones, nowWeek, nowInRange }
+  return { title: raw.title, weeks, rows, bands, milestones, unavailable, nowWeek, nowInRange }
 }
 
 const earliest = (a: WeekId, b: WeekId) => (a < b ? a : b)

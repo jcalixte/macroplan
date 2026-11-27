@@ -1,6 +1,6 @@
 import * as v from "valibot"
 import { parse as parseToml } from "smol-toml"
-import { toYmd } from "./week"
+import { mondayOf, toYmd } from "./week"
 import type { RawFeature, RawPlan, StatusLevel } from "./types"
 
 /** Thrown for any malformed source — message is safe to show the author. */
@@ -66,6 +66,12 @@ const MilestoneSchema = v.object({
   ),
 })
 
+const UnavailableSchema = v.object({
+  name: Name,
+  from: Ymd,
+  to: v.optional(Ymd),
+})
+
 /** The Macroplan format version this build understands (see docs/format.md).
  *  Files may declare `macroplan_version`; a newer version is rejected rather
  *  than silently mis-rendered against a schema we don't know. */
@@ -97,6 +103,14 @@ export function parseMacroplan(source: string): RawPlan {
     milestones: asBlocks(data.milestone, "milestone").map((m, i) =>
       check(MilestoneSchema, m, blockWhere("milestone", m, i)),
     ),
+    unavailable: asBlocks(data.unavailable, "unavailable").map((u, i) => {
+      const where = blockWhere("unavailable", u, i)
+      const period = check(UnavailableSchema, u, where)
+      if (period.to != null && mondayOf(period.to) < mondayOf(period.from)) {
+        throw new PlanParseError(`${where}: \`to\` is before \`from\``)
+      }
+      return period
+    }),
   }
 }
 

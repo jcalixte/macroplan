@@ -32,12 +32,21 @@ export interface RawMilestone {
   requires: string[] // Feature names
 }
 
+/** A run of Weeks the whole team is off (holidays, shutdown, offsite). Drawn
+ *  only — it moves no date, Duration or Forecast. */
+export interface RawUnavailable {
+  name: string
+  from: string // yyyy-mm-dd
+  to?: string // yyyy-mm-dd, inclusive; absent → the single week of `from`
+}
+
 export interface RawPlan {
   title: string
   start?: string // yyyy-mm-dd — optional authored left edge of the plan's span
   end?: string // yyyy-mm-dd — optional authored right edge of the plan's span
   features: RawFeature[]
   milestones: RawMilestone[]
+  unavailable: RawUnavailable[]
 }
 
 // ── Derived model: render-ready (C2 output) ──
@@ -91,12 +100,19 @@ export interface MilestoneLine {
   unmet: string[] // required Features not delivered on/before this week
 }
 
+export interface UnavailablePeriod {
+  name: string
+  from: WeekId
+  to: WeekId // inclusive
+}
+
 export interface Plan {
   title: string
   weeks: WeekId[]
   rows: FeatureRow[] // grouped: Areas in order of first appearance, ungrouped first; each parent followed by its subtree (pre-order)
   bands: Band[]
   milestones: MilestoneLine[]
+  unavailable: UnavailablePeriod[]
   nowWeek: WeekId
   nowInRange: boolean
 }

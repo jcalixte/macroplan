@@ -329,3 +329,40 @@ describe("F8 — Area banding", () => {
     expect(grouped.weeks).toEqual(plain.weeks)
   })
 })
+
+describe("Unavailable weeks — drawn only", () => {
+  const leaf = `[[feature]]\nname = "X"\nstart = 2026-06-01\noriginal = 2026-06-22\n`
+  const off = (body: string) => `[[unavailable]]\nname = "Break"\n${body}\n`
+
+  it("snaps from/to to Mondays, and defaults `to` to the week of `from`", () => {
+    const plan = buildPlan(
+      parseMacroplan(leaf + off("from = 2026-06-10\nto = 2026-06-19") + off("from = 2026-06-24")),
+      TODAY,
+    )
+    expect(plan.unavailable).toEqual([
+      { name: "Break", from: "2026-06-08", to: "2026-06-15" },
+      { name: "Break", from: "2026-06-22", to: "2026-06-22" },
+    ])
+  })
+
+  it("moves no date and never widens the span", () => {
+    const plain = buildPlan(parseMacroplan(leaf), TODAY)
+    const withOff = buildPlan(
+      parseMacroplan(leaf + off("from = 2026-06-08\nto = 2026-09-28")),
+      TODAY,
+    )
+    expect(withOff.rows).toEqual(plain.rows)
+    expect(withOff.weeks).toEqual(plain.weeks)
+  })
+
+  it("rejects `to` before `from`, and a missing `from`", () => {
+    expect(() => parseMacroplan(off("from = 2026-06-15\nto = 2026-06-08"))).toThrow(
+      /unavailable "Break": `to` is before `from`/,
+    )
+    expect(() => parseMacroplan(off(""))).toThrow(/missing `from`/)
+  })
+
+  it("accepts `to` in the same week as `from`", () => {
+    expect(() => parseMacroplan(off("from = 2026-06-19\nto = 2026-06-15"))).not.toThrow()
+  })
+})
