@@ -535,6 +535,11 @@ const bandStyle = computed(() => ({
 .wklabel {
   font-variant-numeric: tabular-nums;
 }
+/* "Oct 05" is wider than a compact Week: month over day instead. */
+.compact .wkhead {
+  white-space: normal;
+  text-align: center;
+}
 .now-head {
   color: var(--color-primary);
 }
