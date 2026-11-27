@@ -362,6 +362,13 @@ describe("Breaks — drawn only", () => {
     expect(() => parseMacroplan(off(""))).toThrow(/missing `from`/)
   })
 
+  it("rejects a misspelled block header instead of dropping it", () => {
+    expect(() => parseMacroplan(`[[brake]]\nname = "Break"\nfrom = 2026-06-15\n`)).toThrow(
+      /unknown block \[\[brake\]\]/,
+    )
+    expect(() => parseMacroplan(`dates = [2026-06-15]\n${leaf}`)).not.toThrow()
+  })
+
   it("accepts `to` in the same week as `from`", () => {
     expect(() => parseMacroplan(off("from = 2026-06-19\nto = 2026-06-15"))).not.toThrow()
   })

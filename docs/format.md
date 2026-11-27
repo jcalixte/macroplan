@@ -278,7 +278,9 @@ a part of the format as the fields:
 
 - **Unknown keys.** The JSON Schema is strict (`additionalProperties: false`) so
   editors flag typos like `titel`. The reference parser is more lenient — it
-  ignores unrecognized top-level keys. Producers SHOULD NOT emit unknown keys.
+  ignores unrecognized top-level keys, but rejects an unknown `[[block]]`
+  name, since a misspelled header would silently drop the whole block.
+  Producers SHOULD NOT emit unknown keys.
 - **Empty plan.** A file with no features and no milestones is valid; with an
   authored `start`/`end` it renders as an empty grid across that span.
 - **Editor integration.** Point [Taplo](https://taplo.tamasfe.dev)-based editors

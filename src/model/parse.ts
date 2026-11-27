@@ -87,6 +87,7 @@ export function parseMacroplan(source: string): RawPlan {
   }
 
   const version = checkVersion(data.macroplan_version)
+  rejectUnknownBlocks(data)
 
   const features = asBlocks(data.feature, "feature").map((f, i) => {
     const { reestimate_weeks, ...rest } = check(FeatureSchema, f, blockWhere("feature", f, i))
@@ -111,6 +112,21 @@ export function parseMacroplan(source: string): RawPlan {
       }
       return period
     }),
+  }
+}
+
+const BLOCKS = ["feature", "milestone", "break"]
+
+/** A misspelled block header (`[[brake]]`) would otherwise vanish without a
+ *  trace — the whole block is just an unknown key. Unknown scalar keys are
+ *  still tolerated (docs/format.md, "Unknown keys"). */
+function rejectUnknownBlocks(data: Record<string, unknown>): void {
+  for (const [key, value] of Object.entries(data)) {
+    if (BLOCKS.includes(key) || !Array.isArray(value) || !value.length) continue
+    if (!value.every((x) => x != null && typeof x === "object" && !Array.isArray(x))) continue
+    if (value.some((x) => x instanceof Date)) continue
+    const expected = BLOCKS.map((b) => `[[${b}]]`).join(", ")
+    throw new PlanParseError(`unknown block [[${key}]] — expected one of ${expected}`)
   }
 }
 
