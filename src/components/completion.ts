@@ -21,7 +21,7 @@ export interface CompletionContext {
   items: Completion[]
 }
 
-type Block = "plan" | "feature" | "milestone"
+type Block = "plan" | "feature" | "milestone" | "unavailable"
 
 const PLAN_KEYS: Completion[] = [
   { label: "title", insert: "title = ", detail: "plan title" },
@@ -54,9 +54,21 @@ const MILESTONE_KEYS: Completion[] = [
   { label: "requires", insert: "requires = ", detail: "list of feature names" },
 ]
 
+const UNAVAILABLE_KEYS: Completion[] = [
+  { label: "name", insert: "name = ", detail: "required — e.g. Christmas break" },
+  { label: "from", insert: "from = ", detail: "first week off — date, required" },
+  { label: "to", insert: "to = ", detail: "last week off — date, optional" },
+]
+
 const HEADERS: Completion[] = [
   { label: "[[feature]]", insert: "[[feature]]", detail: "new feature", filter: "feature" },
   { label: "[[milestone]]", insert: "[[milestone]]", detail: "new milestone", filter: "milestone" },
+  {
+    label: "[[unavailable]]",
+    insert: "[[unavailable]]",
+    detail: "weeks the team is off",
+    filter: "unavailable",
+  },
 ]
 
 const STATUSES = ["on-track", "at-risk", "off-track"] // keep in sync with parse.ts
@@ -84,7 +96,7 @@ export function getCompletions(
   // ── value: a date field — start = <here>, week = <here>, … ────────────────
   // Only on an empty value, so it never fights a date already being typed
   // (the chained refresh after picking the key surfaces these immediately).
-  if (/^\s*(?:start|end|original|delivered|week)\s*=\s*$/.test(linePrefix)) {
+  if (/^\s*(?:start|end|original|delivered|week|from|to)\s*=\s*$/.test(linePrefix)) {
     return result(caret, caret, dateItems(today))
   }
 
@@ -141,8 +153,12 @@ export function getCompletions(
     if (brackets) {
       return result(lineStart + indent.length, caret, filter(headerItems(source, lineStart), word))
     }
-    const keys =
-      block === "feature" ? FEATURE_KEYS : block === "milestone" ? MILESTONE_KEYS : PLAN_KEYS
+    const keys = {
+      plan: PLAN_KEYS,
+      feature: FEATURE_KEYS,
+      milestone: MILESTONE_KEYS,
+      unavailable: UNAVAILABLE_KEYS,
+    }[block]
     const taken = presentKeys(source, lineStart, block)
     const remaining = keys.filter((k) => !taken.has(k.label))
     // Volunteer a new block header only once there's a blank line above: a new
@@ -204,7 +220,7 @@ function filter(items: Completion[], word: string): Completion[] {
   return items.filter((i) => (i.filter ?? i.label).toLowerCase().startsWith(w))
 }
 
-const HEADER_RE = /^[ \t]*\[\[(feature|milestone)\]\]/gm
+const HEADER_RE = /^[ \t]*\[\[(feature|milestone|unavailable)\]\]/gm
 
 /** The block owning the line at `lineStart` — 'plan' before the first header. */
 function currentBlock(source: string, lineStart: number): Block {
@@ -270,7 +286,7 @@ function areaNames(source: string): string[] {
 }
 
 function featureNames(source: string): string[] {
-  const re = /^[ \t]*\[\[(feature|milestone)\]\]|^[ \t]*name\s*=\s*"([^"]*)"/gm
+  const re = /^[ \t]*\[\[(feature|milestone|unavailable)\]\]|^[ \t]*name\s*=\s*"([^"]*)"/gm
   const names = new Set<string>()
   let block: Block = "plan"
   let m: RegExpExecArray | null

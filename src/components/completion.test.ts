@@ -49,7 +49,7 @@ describe("completion context", () => {
     // Directly under the last property: nothing left to add ⇒ no popup.
     expect(getCompletions(...atCaret(`${filled}\n|`))).toBeNull()
     // A blank line signals a new block is wanted ⇒ offer the headers.
-    expect(labelsAt(`${filled}\n\n|`)).toEqual(["[[feature]]", "[[milestone]]"])
+    expect(labelsAt(`${filled}\n\n|`)).toEqual(["[[feature]]", "[[milestone]]", "[[unavailable]]"])
   })
 
   it("volunteers headers after a blank line even with keys still open", () => {
@@ -58,7 +58,13 @@ describe("completion context", () => {
       "requires",
       "[[feature]]",
       "[[milestone]]",
+      "[[unavailable]]",
     ])
+  })
+
+  it("offers unavailable keys and dates inside an [[unavailable]] block", () => {
+    expect(labelsAt("[[unavailable]]\n|")).toEqual(["name", "from", "to"])
+    expect(labelsAt('[[unavailable]]\nname = "Break"\nfrom = 2026-12-21\n|')).toEqual(["to"])
   })
 
   it("excludes keys already written in the current block", () => {
@@ -118,6 +124,10 @@ describe("date completion", () => {
 
   it("offers the same for plan dates and milestone weeks", () => {
     expect(datesAt("end = |")!.items.map((i) => i.insert)).toEqual(["2026-06-19", "2026-"])
+    expect(datesAt("[[unavailable]]\nto = |")!.items.map((i) => i.insert)).toEqual([
+      "2026-06-19",
+      "2026-",
+    ])
     expect(datesAt("[[milestone]]\nweek = |")!.items.map((i) => i.insert)).toEqual([
       "2026-06-19",
       "2026-",
@@ -172,15 +182,23 @@ describe("bracket header block separation", () => {
 
   it("prepends a blank line when a bare [ glues onto the block above", () => {
     // No blank line above ⇒ accepting must not weld the new block to the old one.
-    expect(insertsAt('[[feature]]\nname = "X"\n[|')).toEqual(["\n[[feature]]", "\n[[milestone]]"])
+    expect(insertsAt('[[feature]]\nname = "X"\n[|')).toEqual([
+      "\n[[feature]]",
+      "\n[[milestone]]",
+      "\n[[unavailable]]",
+    ])
   })
 
   it("adds no leading newline when a blank line already separates the block", () => {
-    expect(insertsAt('[[feature]]\nname = "X"\n\n[|')).toEqual(["[[feature]]", "[[milestone]]"])
+    expect(insertsAt('[[feature]]\nname = "X"\n\n[|')).toEqual([
+      "[[feature]]",
+      "[[milestone]]",
+      "[[unavailable]]",
+    ])
   })
 
   it("adds no leading newline at the very top of the document", () => {
-    expect(insertsAt("[|")).toEqual(["[[feature]]", "[[milestone]]"])
+    expect(insertsAt("[|")).toEqual(["[[feature]]", "[[milestone]]", "[[unavailable]]"])
   })
 })
 
