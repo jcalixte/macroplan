@@ -79,3 +79,27 @@ name = "Beta launch"
 week = 2026-07-13
 requires = ["Search", "Notifications"]
 `
+
+/** FNV-1a over UTF-16 code units, as 8 hex digits. Identifies a shipped
+ *  sample without bundling its full text. */
+export function sampleHash(source: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < source.length; i++) {
+    h ^= source.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(16).padStart(8, "0")
+}
+
+// Every SAMPLE_PLAN shipped before the current one. A stored plan still equal
+// to one of them was never edited, so it is safe to replace with SAMPLE_PLAN.
+// When SAMPLE_PLAN changes, add the hash of the version it replaces here.
+export const RETIRED_SAMPLE_HASHES: ReadonlySet<string> = new Set([
+  "4d09290f", // c1d7218
+  "0f11d004", // 6e80000
+  "f5e1ff0c", // 8000307
+  "7cd00111", // d499433
+  "33605cbc", // 40ee9f5
+  "21084863", // 53716a1
+  "737178b7", // a2f21ef
+])

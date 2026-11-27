@@ -4,7 +4,7 @@ import { parseMacroplan } from "../model/parse"
 import { buildPlan } from "../model/plan"
 import { longTextHints, versionHint } from "../model/hints"
 import type { Plan } from "../model/types"
-import { SAMPLE_PLAN } from "../data/sample"
+import { SAMPLE_PLAN, RETIRED_SAMPLE_HASHES, sampleHash } from "../data/sample"
 import { tutorialPlans } from "../data/tutorial"
 
 const STORAGE_KEY = "macroplan:library"
@@ -41,6 +41,13 @@ function newStoredPlan(source: string): StoredPlan {
   return { id: crypto.randomUUID(), name: titleOf(source) ?? "Untitled", source }
 }
 
+/** An untouched copy of an older shipped sample becomes the current sample,
+ *  so a format change never leaves it unparseable. Edited plans are kept. */
+function refreshSample(p: StoredPlan): StoredPlan {
+  if (!RETIRED_SAMPLE_HASHES.has(sampleHash(p.source))) return p
+  return { ...p, name: titleOf(SAMPLE_PLAN) ?? p.name, source: SAMPLE_PLAN }
+}
+
 function save(lib: Library): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(lib))
@@ -62,7 +69,7 @@ function loadLibrary(): Library {
       if (parsed.success && parsed.output.plans.length > 0) {
         const lib = parsed.output
         if (!lib.plans.some((p) => p.id === lib.activeId)) lib.activeId = lib.plans[0].id
-        result = { version: 1, activeId: lib.activeId, plans: lib.plans }
+        result = { version: 1, activeId: lib.activeId, plans: lib.plans.map(refreshSample) }
       }
     } catch {
       /* corrupt JSON → fall through to migration / seed */

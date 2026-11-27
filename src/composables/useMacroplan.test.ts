@@ -2,7 +2,8 @@
 import { describe, it, expect, beforeEach } from "vitest"
 import { nextTick } from "vue"
 import { useMacroplan } from "./useMacroplan"
-import { SAMPLE_PLAN } from "../data/sample"
+import { SAMPLE_PLAN, sampleHash, RETIRED_SAMPLE_HASHES } from "../data/sample"
+import oldSample from "../data/fixtures/sample-2026-06-17.toml?raw"
 
 const LIB_KEY = "macroplan:library"
 const LEGACY_KEY = "macroplan:source"
@@ -25,6 +26,23 @@ describe("useMacroplan — load & migration", () => {
     expect(m.source.value).toBe(SAMPLE_PLAN)
     expect(m.plans.value[0].name).toBe("Q3 — Checkout revamp")
     expect(localStorage.getItem(LEGACY_KEY)).toBeNull()
+  })
+
+  it("replaces an untouched copy of an older sample with the current one", () => {
+    const lib = (source: string) =>
+      JSON.stringify({ version: 1, activeId: "a", plans: [{ id: "a", name: "Old", source }] })
+    localStorage.setItem(LIB_KEY, lib(oldSample))
+    const m = useMacroplan()
+    expect(m.source.value).toBe(SAMPLE_PLAN)
+    expect(m.plans.value[0].id).toBe("a")
+    expect(m.error.value).toBeNull()
+
+    localStorage.setItem(LIB_KEY, lib(oldSample + "# edited\n"))
+    expect(useMacroplan().source.value).toBe(oldSample + "# edited\n")
+  })
+
+  it("never lists the current sample as retired", () => {
+    expect(RETIRED_SAMPLE_HASHES.has(sampleHash(SAMPLE_PLAN))).toBe(false)
   })
 
   it("falls back to a fresh sample when the library JSON is corrupt", () => {
