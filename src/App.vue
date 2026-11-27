@@ -299,7 +299,7 @@ const paletteAria = ariaChord(PALETTE)
 <template>
   <div class="flex h-dvh flex-col bg-base-200 font-sans text-base-content">
     <header class="navbar min-h-0 gap-2 border-b border-base-300 bg-base-100 px-4 py-2">
-      <img src="/favicon.svg" alt="" class="size-6" />
+      <img src="/favicon.svg" alt="" class="size-6 max-sm:hidden" />
       <div class="min-w-0 flex-1">
         <PlanSwitcher
           :plans="plans"
@@ -353,7 +353,7 @@ const paletteAria = ariaChord(PALETTE)
           />
         </svg>
         <span class="max-sm:sr-only">Commands</span>
-        <span class="keys max-sm:hidden" aria-hidden="true">
+        <span class="keys inline-flex max-sm:hidden" aria-hidden="true">
           <kbd v-for="k in paletteKeys" :key="k">{{ k }}</kbd>
         </span>
       </button>
@@ -558,8 +558,9 @@ const paletteAria = ariaChord(PALETTE)
   gap: 0.5rem;
   font-weight: 500;
 }
+/* No `display` here: unlayered scoped CSS would beat the `max-sm:hidden`
+   utility, which lives in a cascade layer. */
 .keys {
-  display: inline-flex;
   gap: 0.125rem;
 }
 .keys kbd {

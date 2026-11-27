@@ -18,8 +18,8 @@ const activeName = computed(
 </script>
 
 <template>
-  <div class="dropdown">
-    <div tabindex="0" role="button" class="btn btn-ghost btn-sm gap-1 normal-case">
+  <div class="dropdown max-w-full">
+    <div tabindex="0" role="button" class="btn btn-ghost btn-sm max-w-full gap-1 normal-case">
       <span class="max-w-[14rem] truncate font-semibold">{{ activeName }}</span>
       <span aria-hidden="true">▾</span>
     </div>
