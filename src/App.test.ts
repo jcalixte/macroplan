@@ -151,6 +151,19 @@ describe("App — keyboard layer", () => {
     expect(downloadSource).not.toHaveBeenCalled()
   })
 
+  it("downloads the .toml on S, but not while typing in a field", async () => {
+    vi.mocked(downloadSource).mockClear()
+    mount(App, { global: { stubs }, attachTo: document.body })
+    const field = document.createElement("textarea")
+    document.body.append(field)
+    press({ key: "s" }, field)
+    expect(downloadSource).not.toHaveBeenCalled()
+    const e = press({ key: "s" })
+    expect(e.defaultPrevented).toBe(true)
+    expect(downloadSource).toHaveBeenCalledOnce()
+    field.remove()
+  })
+
   it("opens the palette on Mod+K and on ?", async () => {
     const w = mount(App, { global: { stubs }, attachTo: document.body })
     const palette = w.findComponent({ name: "CommandPalette" })

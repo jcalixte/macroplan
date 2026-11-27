@@ -191,6 +191,7 @@ const commands = computed<Command[]>(() => {
     id: "download-toml",
     group: "Export",
     label: "Download the source as .toml",
+    chord: { key: "s" },
     run: downloadToml,
   })
 

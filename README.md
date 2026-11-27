@@ -26,7 +26,7 @@ Dashboard              ┣━━━━━◯                             🔴  n
 - On-time vs. late is **derived** by the app against the Original Estimate — you never type "late".
 - **Milestones** are vertical lines tied to an explicit list of required features.
 - Group features into **Areas** (`area = "Training"`) — each becomes a labelled band with a rotated label in a left gutter, adding no rows and leaving the date lines unbroken. A plan with no Areas renders exactly as before.
-- **Keyboard-first**: `⌘K` / `Ctrl+K` (or `?`) opens a command palette for every action and plan; `Alt+1/2/3` switch panes, `E` jumps into the source and `Esc` leaves it, `N` new plan, `[` `]` cycle plans, `C` / `D` copy / download the PNG.
+- **Keyboard-first**: `⌘K` / `Ctrl+K` (or `?`) opens a command palette for every action and plan; `Alt+1/2/3` switch panes, `E` jumps into the source and `Esc` leaves it, `N` new plan, `[` `]` cycle plans, `C` / `D` copy / download the PNG, `S` downloads the `.toml`.
 - Keep a **library** of named plans in localStorage and switch between them; **export** any plan as a `.toml` file, or the rendered view as a **PNG** to share into Slack or a deck.
 - Stack: Vite + Vue 3 + DaisyUI · `smol-toml` (parse) · `html-to-image` (export). Static SPA, no backend.
 
