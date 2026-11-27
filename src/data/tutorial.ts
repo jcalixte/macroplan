@@ -187,7 +187,7 @@ requires = ["Search", "Checkout flow"]
 #   3. Each review: add \`reestimates\` for slips, \`delivered\` when shipped,
 #      a \`status\` while in flight, a \`learning\` once done.
 #   4. Group with \`area\`, mark dates that matter with [[milestone]].
-# Start typing a key to get completions. ⌘K / Ctrl+K lists every command.
+# Start typing a key to get completions. ⌘K / Ctrl+K lists every command (⌥K / Alt+K if your browser takes ⌘K).
 # The full format: https://git.apoena.dev/julien/macroplan/src/branch/main/docs/format.md
 macroplan_version = 3
 title = "My plan"

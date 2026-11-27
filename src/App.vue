@@ -132,6 +132,8 @@ function restoreArchived() {
 // in the palette is always the chord that works.
 
 const PALETTE: Chord = { key: "k", mod: true }
+// For browsers whose own ⌘K menu item swallows the keypress before the page.
+const PALETTE_FALLBACK: Chord = { code: "KeyK", alt: true }
 
 function focusSource() {
   if (!showSource.value) mode.value = editMode()
@@ -290,7 +292,7 @@ const commands = computed<Command[]>(() => {
 function onKeydown(e: KeyboardEvent) {
   if (e.defaultPrevented || e.isComposing) return
   if (paletteOpen.value || inspecting.value) return // their own dialogs handle their keys
-  if (matches(e, PALETTE)) {
+  if (matches(e, PALETTE) || matches(e, PALETTE_FALLBACK)) {
     e.preventDefault()
     paletteOpen.value = true
     return
@@ -323,7 +325,7 @@ onMounted(() => window.addEventListener("keydown", onKeydown))
 onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 
 const paletteKeys = chordKeys(PALETTE)
-const paletteAria = ariaChord(PALETTE)
+const paletteAria = `${ariaChord(PALETTE)} ${ariaChord(PALETTE_FALLBACK)}`
 </script>
 
 <template>

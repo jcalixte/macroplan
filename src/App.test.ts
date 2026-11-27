@@ -190,9 +190,14 @@ describe("App — keyboard layer", () => {
     field.remove()
   })
 
-  it("opens the palette on Mod+K and on ?", async () => {
+  it("opens the palette on Mod+K, on Alt+K by physical key, and on ?", async () => {
     const w = mount(App, { global: { stubs }, attachTo: document.body })
     const palette = w.findComponent({ name: "CommandPalette" })
+    press({ key: "˚", code: "KeyK", altKey: true })
+    await nextTick()
+    expect(palette.props("open")).toBe(true)
+    palette.vm.$emit("close")
+    await nextTick()
     press({ key: "k", ...ctrl })
     await nextTick()
     expect(palette.props("open")).toBe(true)
