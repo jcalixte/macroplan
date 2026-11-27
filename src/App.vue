@@ -25,7 +25,7 @@ const {
   newPlan,
   deletePlan,
 } = useMacroplan()
-const { busy, toast, copyPng, downloadPng } = usePngExport()
+const { busy, toast, holdToast, releaseToast, copyPng, downloadPng } = usePngExport()
 
 const exportRoot = ref<HTMLElement>()
 const editor = ref<InstanceType<typeof PlanEditor>>()
@@ -428,10 +428,21 @@ const paletteAria = ariaChord(PALETTE)
 
     <CommandPalette :open="paletteOpen" :commands="commands" @close="paletteOpen = false" />
 
-    <div v-if="toast" class="toast toast-end">
-      <div class="alert" :class="toast.kind === 'ok' ? 'alert-success' : 'alert-error'">
-        <span>{{ toast.text }}</span>
-      </div>
+    <!-- The live region stays mounted so screen readers announce each toast. -->
+    <div class="toast toast-end" role="status">
+      <Transition name="toast">
+        <div
+          v-if="toast"
+          class="alert"
+          :class="toast.kind === 'ok' ? 'alert-success' : 'alert-error'"
+          @pointerenter="holdToast"
+          @pointerleave="releaseToast"
+          @focusin="holdToast"
+          @focusout="releaseToast"
+        >
+          <span>{{ toast.text }}</span>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -487,6 +498,36 @@ const paletteAria = ariaChord(PALETTE)
   background: var(--color-base-200);
   font-size: 0.6875rem;
   color: var(--color-ink-muted);
+}
+/* Export acknowledgement: rises 8px from the corner it lives in, leaves the
+   way it came, faster. Reduced motion keeps the fade. */
+.toast {
+  pointer-events: none;
+}
+.toast > .alert {
+  pointer-events: auto;
+  animation: none;
+}
+.toast-enter-active {
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    translate var(--dur-base) var(--ease-out);
+}
+.toast-leave-active {
+  transition:
+    opacity var(--dur-exit-base) var(--ease-out),
+    translate var(--dur-exit-base) var(--ease-out);
+}
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  translate: 0 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-enter-from,
+  .toast-leave-to {
+    translate: none;
+  }
 }
 .empty {
   display: grid;

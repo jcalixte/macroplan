@@ -28,10 +28,25 @@ export function usePngExport() {
   const toast = ref<Toast>(null)
   let timer: ReturnType<typeof setTimeout> | undefined
 
+  // Long enough to read, and held while the pointer or focus is on the toast.
+  const TOAST_MS = 5000
+
+  function dismissLater() {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => (toast.value = null), TOAST_MS)
+  }
+
   function flash(kind: "ok" | "err", text: string) {
     toast.value = { kind, text }
+    dismissLater()
+  }
+
+  function holdToast() {
     if (timer) clearTimeout(timer)
-    timer = setTimeout(() => (toast.value = null), 3000)
+  }
+
+  function releaseToast() {
+    if (toast.value) dismissLater()
   }
 
   async function render(el: HTMLElement): Promise<Blob> {
@@ -85,5 +100,5 @@ export function usePngExport() {
     }
   }
 
-  return { busy, toast, copyPng, downloadPng }
+  return { busy, toast, holdToast, releaseToast, copyPng, downloadPng }
 }
