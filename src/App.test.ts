@@ -200,14 +200,14 @@ describe("App — on a phone", () => {
     expect(w.findComponent({ name: "PlanEditor" }).exists()).toBe(false)
   })
 
-  it("toggles to the source and back from one header button", async () => {
+  it("switches between the source and the Macroplan, with no Split on offer", async () => {
     const w = mountApp()
-    const toggle = () => w.find("header button.md\\:hidden")
-    expect(toggle().text()).toBe("Source")
-    await toggle().trigger("click")
+    const btn = (label: string) => w.findAll(".join button").find((b) => b.text() === label)!
+    expect(btn("Split").classes()).toContain("max-md:hidden")
+    expect(btn("Macroplan").attributes("aria-pressed")).toBe("true")
+    await btn("Source").trigger("click")
     expect(w.findComponent({ name: "PlanEditor" }).exists()).toBe(true)
     expect(w.findComponent({ name: "MacroplanGrid" }).exists()).toBe(false)
-    expect(toggle().text()).toBe("Plan")
   })
 
   it("draws the grid compact", () => {

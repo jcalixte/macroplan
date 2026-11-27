@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue"
+import { ref, computed, watch, watchEffect, nextTick, onMounted, onBeforeUnmount } from "vue"
 import { useMacroplan } from "./composables/useMacroplan"
 import { usePngExport, exportFilename, canShareFiles } from "./composables/usePngExport"
 import { sourceFilename, downloadSource } from "./composables/useSourceExport"
@@ -48,16 +48,16 @@ function readViewMode(): ViewMode {
 
 const mode = ref<ViewMode>(readViewMode())
 
-// A phone is for reading: side by side has no room there, so Split shows the
-// Macroplan alone and the header offers one Plan ⇄ Source toggle. The chosen
-// mode is kept, so widening the window brings Split back.
+// A phone is for reading and has no room side by side: Split falls back to
+// the Macroplan there, and its button is hidden.
 const narrow = useMedia(NARROW)
 const touch = useMedia(TOUCH)
-const view = computed<ViewMode>(() =>
-  narrow.value && mode.value === "split" ? "macroplan" : mode.value,
-)
-const showSource = computed(() => view.value !== "macroplan")
-const showMacroplan = computed(() => view.value !== "source")
+watchEffect(() => {
+  if (narrow.value && mode.value === "split") mode.value = "macroplan"
+})
+const showSource = computed(() => mode.value !== "macroplan")
+const showMacroplan = computed(() => mode.value !== "source")
+const editMode = () => (narrow.value ? "source" : "split")
 
 // The Feature whose details are open, by name. Cleared on a plan switch, and
 // the sheet closes by itself if an edit removes the Feature.
@@ -108,7 +108,7 @@ watch(confirmingDelete, (open) => open && nextTick(() => cancelDelete.value?.foc
 const PALETTE: Chord = { key: "k", mod: true }
 
 function focusSource() {
-  if (!showSource.value) mode.value = narrow.value ? "source" : "split"
+  if (!showSource.value) mode.value = editMode()
   nextTick(() => editor.value?.focus())
 }
 
@@ -130,7 +130,7 @@ const commands = computed<Command[]>(() => {
         group: "View",
         label: "Show the source only",
         chord: { code: "Digit1", alt: true },
-        current: view.value === "source",
+        current: mode.value === "source",
         run: () => (mode.value = "source"),
       },
       {
@@ -138,7 +138,7 @@ const commands = computed<Command[]>(() => {
         group: "View",
         label: "Show source and Macroplan side by side",
         chord: { code: "Digit2", alt: true },
-        current: view.value === "split",
+        current: mode.value === "split",
         run: () => (mode.value = "split"),
       },
       {
@@ -146,7 +146,7 @@ const commands = computed<Command[]>(() => {
         group: "View",
         label: "Show the Macroplan only",
         chord: { code: "Digit3", alt: true },
-        current: view.value === "macroplan",
+        current: mode.value === "macroplan",
         run: () => (mode.value = "macroplan"),
       },
       {
@@ -309,28 +309,11 @@ const paletteAria = ariaChord(PALETTE)
           @download="downloadToml"
         />
       </div>
-      <button
-        class="btn btn-sm md:hidden"
-        :title="view === 'source' ? 'Show the rendered plan' : 'Show the TOML source'"
-        @click="mode = view === 'source' ? 'macroplan' : 'source'"
-      >
-        <svg v-if="view === 'source'" class="icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M3 6h7" />
-          <path d="M7 12h9" />
-          <path d="M12 18h9" />
-        </svg>
-        <svg v-else class="icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M7 8l-4 4l4 4" />
-          <path d="M17 8l4 4l-4 4" />
-          <path d="M14 4l-4 16" />
-        </svg>
-        {{ view === "source" ? "Plan" : "Source" }}
-      </button>
-      <div class="join max-md:hidden" role="group" aria-label="Choose which panes to show">
+      <div class="join" role="group" aria-label="Choose which panes to show">
         <button
           class="btn btn-sm join-item"
-          :class="{ 'btn-active': view === 'source' }"
-          :aria-pressed="view === 'source'"
+          :class="{ 'btn-active': mode === 'source' }"
+          :aria-pressed="mode === 'source'"
           aria-keyshortcuts="Alt+1"
           title="Show only the TOML source"
           @click="mode = 'source'"
@@ -338,9 +321,9 @@ const paletteAria = ariaChord(PALETTE)
           Source
         </button>
         <button
-          class="btn btn-sm join-item"
-          :class="{ 'btn-active': view === 'split' }"
-          :aria-pressed="view === 'split'"
+          class="btn btn-sm join-item max-md:hidden"
+          :class="{ 'btn-active': mode === 'split' }"
+          :aria-pressed="mode === 'split'"
           aria-keyshortcuts="Alt+2"
           title="Show the source and the Macroplan side by side"
           @click="mode = 'split'"
@@ -349,8 +332,8 @@ const paletteAria = ariaChord(PALETTE)
         </button>
         <button
           class="btn btn-sm join-item"
-          :class="{ 'btn-active': view === 'macroplan' }"
-          :aria-pressed="view === 'macroplan'"
+          :class="{ 'btn-active': mode === 'macroplan' }"
+          :aria-pressed="mode === 'macroplan'"
           aria-keyshortcuts="Alt+3"
           title="Show only the rendered Macroplan"
           @click="mode = 'macroplan'"
@@ -491,11 +474,7 @@ const paletteAria = ariaChord(PALETTE)
               The source has an error. Fix it and the Macroplan redraws as you type.
             </p>
             <pre v-if="!showSource && error" class="empty-error">{{ error }}</pre>
-            <button
-              v-if="!showSource"
-              class="btn btn-sm btn-primary"
-              @click="mode = narrow ? 'source' : 'split'"
-            >
+            <button v-if="!showSource" class="btn btn-sm btn-primary" @click="mode = editMode()">
               Show the source
             </button>
           </div>
