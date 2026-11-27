@@ -61,10 +61,10 @@ describe("MacroplanGrid renders the sample plan", () => {
     )
   })
 
-  it("leaves the arrow dangling on an off-track Feature: no Countermeasure", () => {
+  it("shows no arrow on an off-track Feature: no Countermeasure", () => {
     const dashboard = mountGrid().findAll(".learncell")[2]
     expect(dashboard.find(".problem").text()).toBe("No owner since the reorg.")
-    expect(dashboard.find(".arrow").exists()).toBe(true)
+    expect(dashboard.find(".arrow").exists()).toBe(false)
     expect(dashboard.find(".countermeasure").exists()).toBe(false)
     expect(dashboard.find(".celltext").attributes("title")).toContain("Countermeasure: none")
   })

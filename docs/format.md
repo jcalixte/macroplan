@@ -304,8 +304,8 @@ a part of the format as the fields:
     delivered feature shows its `learning` behind a _learned_ label, or just
     "delivered on time" / "delivered late". An undelivered feature always
     shows its Status word ("in flight" when absent). An at-risk or off-track
-    feature then reads `problem → countermeasure`: an off-track feature has
-    no Countermeasure, so its arrow is left dangling.
+    feature then reads `problem → countermeasure`; with no Countermeasure
+    (always the case off-track) it shows the problem alone, without the arrow.
 
 ## Notes for implementers
 

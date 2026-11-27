@@ -90,8 +90,8 @@ function statusWord(row: FeatureRow): string {
   return row.status ? row.status.replace("-", " ") : "in flight"
 }
 
-// at-risk and off-track rows read `Problem → Countermeasure`; off-track never
-// has a Countermeasure, so its arrow is left dangling on purpose.
+// at-risk and off-track rows read `Problem → Countermeasure`; the arrow only
+// shows when there is a Countermeasure to point at.
 function inTrouble(row: FeatureRow): boolean {
   return row.status === "at-risk" || row.status === "off-track"
 }
@@ -339,7 +339,7 @@ const bandStyle = computed(() => ({
             <span class="chip" :class="TONE_CHIP[tone(row)]">{{ statusWord(row) }}</span>
             <span v-if="inTrouble(row)" class="celltext" :title="troubleTitle(row)">
               <span v-if="row.problem" class="problem">{{ row.problem }}</span>
-              <span class="arrow">→</span>
+              <span v-if="row.countermeasure" class="arrow">→</span>
               <span v-if="row.countermeasure" class="countermeasure">{{ row.countermeasure }}</span>
             </span>
           </template>

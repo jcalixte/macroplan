@@ -87,7 +87,7 @@ _Avoid_: schema version, file version, app version
 - `◌` Forecast (computed, drawn muted), shown only when it differs from the latest estimate
 - `▨` a **Break** week (hatched column)
 - `┄` the stretch of a bar from the latest estimate to the Forecast
-- `→` reads Problem → Countermeasure; left dangling when there is no Countermeasure
+- `→` reads Problem → Countermeasure; hidden when there is no Countermeasure
 
 ## Relationships
 
