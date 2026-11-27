@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, useId } from "vue"
 import type { Plan, FeatureRow, MarkerKind } from "../model/types"
-import { GLYPH, MARKER_CLASS } from "./glyphs"
+import { GLYPH, MARKER_CLASS, TONE_TEXT, TONE_CHIP, chipClass } from "./glyphs"
+import { rowTone as tone, trouble, stateWord, type Tone } from "../model/status"
 import { troubleBelow, visibleRows } from "../model/plan"
 import { weekLabel, type WeekId } from "../model/week"
 
@@ -17,8 +18,6 @@ const emit = defineEmits<{ toggle: [name: string]; inspect: [name: string] }>()
 // and band spans are recounted over what is shown (F11).
 const shown = computed(() => visibleRows(props.plan, props.expanded))
 
-type Tone = "success" | "warning" | "error" | "neutral"
-
 // When two markers land on the same week, the higher rank owns the cell.
 const RANK: Record<MarkerKind, number> = {
   "delivered-late": 3,
@@ -27,23 +26,11 @@ const RANK: Record<MarkerKind, number> = {
   original: 1,
   forecast: 0,
 }
-const TONE_TEXT: Record<Tone, string> = {
-  success: "text-ink-success",
-  warning: "text-ink-warning",
-  error: "text-ink-error",
-  neutral: "text-primary",
-}
 const TONE_BORDER: Record<Tone, string> = {
   success: "border-ink-success",
   warning: "border-ink-warning",
   error: "border-ink-error",
   neutral: "border-primary",
-}
-const TONE_CHIP: Record<Tone, string> = {
-  success: "text-ink-success",
-  warning: "text-ink-warning",
-  error: "text-ink-error",
-  neutral: "text-ink-muted",
 }
 
 // Layout constants (must match the CSS vars --name-w / --wk / --area-w) for
@@ -68,32 +55,6 @@ const gridStyle = computed(() => ({
   gridTemplateColumns: `var(--area-w) var(--name-w) repeat(${weeks.value.length}, var(--wk)) minmax(9rem, 1fr)`,
 }))
 
-function tone(row: FeatureRow): Tone {
-  if (row.delivered) return row.onTime ? "success" : "error"
-  if (row.status === "on-track") return "success"
-  if (row.status === "at-risk") return "warning"
-  if (row.status === "off-track") return "error"
-  return "neutral"
-}
-
-function statusWord(row: FeatureRow): string {
-  return row.status ? row.status.replace("-", " ") : "in flight"
-}
-
-// at-risk and off-track rows read `Problem → Countermeasure`; the arrow only
-// shows when there is a Countermeasure to point at.
-function inTrouble(row: FeatureRow): boolean {
-  return row.status === "at-risk" || row.status === "off-track"
-}
-
-// An in-flight Feature in trouble paints its whole row: a tinted band, a filled
-// Status chip, a bold name and a heavier bar — the andon a reviewer scans for.
-// Delivered Features drop their Status, so they never light up.
-function trouble(row: FeatureRow): "at-risk" | "off-track" | null {
-  if (row.delivered) return null
-  return row.status === "at-risk" || row.status === "off-track" ? row.status : null
-}
-
 // Status never rolls up, but a folded parent must not hide trouble: it carries
 // a dot in the worst descendant's colour. Unfolded, the children speak for
 // themselves.
@@ -103,11 +64,6 @@ function hiddenTrouble(row: FeatureRow) {
   if (props.expanded.has(row.name)) return undefined
   const t = below.value.get(row.name)
   return t && { ...t, label: `${t.count} ${t.level.replace("-", " ")} below` }
-}
-
-function chipClass(row: FeatureRow): string {
-  const t = trouble(row)
-  return t ? `chip-fill chip-${t}` : TONE_CHIP[tone(row)]
 }
 
 // Each Status / Problem / Countermeasure cell opens a popover with its full
@@ -433,8 +389,8 @@ const bandStyle = computed(() => ({
             }}</span>
           </template>
           <template v-else>
-            <span class="chip" :class="chipClass(row)">{{ statusWord(row) }}</span>
-            <template v-if="inTrouble(row) && (row.problem || row.countermeasure)">
+            <span class="chip" :class="chipClass(row)">{{ stateWord(row) }}</span>
+            <template v-if="trouble(row) && (row.problem || row.countermeasure)">
               <button
                 type="button"
                 class="celltext trouble"
@@ -449,7 +405,7 @@ const bandStyle = computed(() => ({
               </button>
               <div :id="popId(ri)" popover class="cellpop" :style="{ positionAnchor: anchor(ri) }">
                 <p class="popname">
-                  {{ row.name }} <span class="popstatus">{{ statusWord(row) }}</span>
+                  {{ row.name }} <span class="popstatus">{{ stateWord(row) }}</span>
                 </p>
                 <dl>
                   <dt>Problem</dt>
@@ -838,18 +794,6 @@ const bandStyle = computed(() => ({
   background: var(--cell-bg);
   border-radius: 0.3rem;
 }
-/* No Unicode glyph for a dashed △: draw it, sized to sit with the text glyphs. */
-.tri-dash {
-  display: inline-block;
-  width: 0.95em;
-  height: 0.95em;
-  vertical-align: -0.1em;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.3;
-  stroke-dasharray: 2.2 1.5;
-  stroke-linejoin: round;
-}
 
 /* Chip in its own column, text beside it. Baseline alignment pins the chip to
    the first line of a two-line Problem → Countermeasure; align-content keeps
@@ -897,35 +841,6 @@ const bandStyle = computed(() => ({
   line-clamp: 2;
   overflow: hidden;
   overflow-wrap: anywhere;
-}
-/* The chip names the kind of text that follows: a Status or a Learning. */
-.chip {
-  flex: none;
-  padding: 0 0.35rem;
-  border: 1px solid currentColor;
-  border-radius: 9999px;
-  font-size: 0.625rem;
-  font-weight: 600;
-  line-height: 1.4;
-  white-space: nowrap;
-}
-/* Filled chip for a Feature in trouble: the loudest mark on the row. DaisyUI's
-   warning pair measures 5.2:1, the alarm red with white 5.4:1, on both themes. */
-.chip-fill {
-  border-color: transparent;
-  padding-inline: 0.45rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.chip-at-risk {
-  background: var(--color-warning);
-  color: var(--color-warning-content);
-}
-.chip-off-track {
-  background: var(--color-alarm);
-  color: var(--color-alarm-content);
 }
 /* Problem → Countermeasure, one per line so a long Problem never truncates the
    action. The Problem is what a reviewer must see first, so it leads in bold. The arrow hangs in

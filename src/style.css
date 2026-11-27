@@ -109,3 +109,46 @@
     translate: none;
   }
 }
+
+/* ── Shared marks: the grid, the Feature sheet and the plan header ──── */
+/* The chip names the kind of text that follows: a Status or a Learning. */
+.chip {
+  flex: none;
+  padding: 0 0.35rem;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+/* Filled chip for a Feature in trouble: the loudest mark on the row. DaisyUI's
+   warning pair measures 5.2:1, the alarm red with white 5.4:1, on both themes. */
+.chip-fill {
+  border-color: transparent;
+  padding-inline: 0.45rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.chip-at-risk {
+  background: var(--color-warning);
+  color: var(--color-warning-content);
+}
+.chip-off-track {
+  background: var(--color-alarm);
+  color: var(--color-alarm-content);
+}
+/* No Unicode glyph for a dashed △: draw it, sized to sit with the text glyphs. */
+.tri-dash {
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  vertical-align: -0.1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-dasharray: 2.2 1.5;
+  stroke-linejoin: round;
+}

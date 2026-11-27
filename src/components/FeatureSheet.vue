@@ -2,7 +2,8 @@
 import { ref, computed, watch, nextTick, useId } from "vue"
 import type { FeatureFacts } from "../model/facts"
 import { weekLabel } from "../model/week"
-import { GLYPH, MARKER_CLASS } from "./glyphs"
+import { GLYPH, MARKER_CLASS, TONE_TEXT, chipClass } from "./glyphs"
+import { rowTone, trouble, stateWord } from "../model/status"
 
 // Everything about one Feature in one place. On a phone it rises as a bottom
 // sheet: the grid spreads a Feature over a row, hover titles and a Status
@@ -26,28 +27,6 @@ watch(
 )
 
 const row = computed(() => props.facts?.row)
-
-const tone = computed(() => {
-  const r = row.value
-  if (!r) return "neutral"
-  if (r.delivered) return r.onTime ? "success" : "error"
-  if (r.status === "on-track") return "success"
-  if (r.status === "at-risk") return "warning"
-  if (r.status === "off-track") return "error"
-  return "neutral"
-})
-
-const inTrouble = computed(
-  () =>
-    !row.value?.delivered && (row.value?.status === "at-risk" || row.value?.status === "off-track"),
-)
-
-const stateWord = computed(() => {
-  const r = row.value
-  if (!r) return ""
-  if (r.delivered) return r.onTime ? "delivered on time" : "delivered late"
-  return r.status ? r.status.replace("-", " ") : "in flight"
-})
 
 const context = computed(() => {
   const r = row.value
@@ -96,16 +75,16 @@ function onDialogClick(e: MouseEvent) {
       </header>
 
       <p class="state">
-        <span class="chip" :class="inTrouble ? `chip-fill chip-${row.status}` : `tone-${tone}`">
-          {{ stateWord }}
+        <span class="chip" :class="chipClass(row)">
+          {{ stateWord(row) }}
         </span>
         <span v-if="row.slipCount" class="slips">
           re-estimated {{ row.slipCount }} time{{ row.slipCount === 1 ? "" : "s" }}
         </span>
       </p>
 
-      <dl v-if="inTrouble || row.learning" class="prose">
-        <template v-if="inTrouble">
+      <dl v-if="trouble(row) || row.learning" class="prose">
+        <template v-if="trouble(row)">
           <dt>Problem</dt>
           <dd class="problem" :class="{ muted: !row.problem }">
             {{ row.problem ?? "Not stated" }}
@@ -121,7 +100,7 @@ function onDialogClick(e: MouseEvent) {
 
       <section class="block">
         <h4>Timeline</h4>
-        <ol class="timeline" :class="`tone-${tone}`">
+        <ol class="timeline" :class="TONE_TEXT[rowTone(row)]">
           <li v-for="t in facts.timeline" :key="t.kind + t.week + t.label">
             <span class="glyph" :class="glyphClass(t.kind)" aria-hidden="true">
               <svg
@@ -272,39 +251,10 @@ function onDialogClick(e: MouseEvent) {
 .slips {
   color: var(--color-ink-muted);
 }
-.chip {
+/* The shared chip, sized up to lead the sheet. */
+.state .chip {
   padding: 0.125rem 0.6rem;
-  border: 1px solid currentColor;
-  border-radius: 9999px;
   font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.chip-fill {
-  border-color: transparent;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.chip-at-risk {
-  background: var(--color-warning);
-  color: var(--color-warning-content);
-}
-.chip-off-track {
-  background: var(--color-alarm);
-  color: var(--color-alarm-content);
-}
-.tone-success {
-  color: var(--color-ink-success);
-}
-.tone-warning {
-  color: var(--color-ink-warning);
-}
-.tone-error {
-  color: var(--color-ink-error);
-}
-.tone-neutral {
-  color: var(--color-primary);
 }
 
 dt,
@@ -378,16 +328,6 @@ h4 {
 .when {
   font-variant-numeric: tabular-nums;
   color: var(--color-ink-muted);
-}
-.tri-dash {
-  display: inline-block;
-  width: 0.95em;
-  height: 0.95em;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.3;
-  stroke-dasharray: 2.2 1.5;
-  stroke-linejoin: round;
 }
 .ms-dia {
   justify-self: center;

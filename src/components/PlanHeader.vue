@@ -22,8 +22,8 @@ const items = computed(() => {
   return [
     { n: t.onTime, glyph: "◉", cls: "text-ink-success", label: "on time" },
     { n: t.late, glyph: "▲", cls: "text-ink-error", label: "late" },
-    { n: t.offTrack, glyph: "", cls: "", label: "off track", fill: "fill-off-track" },
-    { n: t.atRisk, glyph: "", cls: "", label: "at risk", fill: "fill-at-risk" },
+    { n: t.offTrack, glyph: "", cls: "", label: "off track", fill: "chip-off-track" },
+    { n: t.atRisk, glyph: "", cls: "", label: "at risk", fill: "chip-at-risk" },
     { n: t.onTrack, glyph: "●", cls: "text-ink-success", label: "on track" },
     { n: t.inFlight, glyph: "○", cls: "text-ink-muted", label: "in flight" },
   ].filter((i) => i.n > 0)
@@ -103,14 +103,6 @@ const items = computed(() => {
   letter-spacing: 0.04em;
   font-size: 0.75rem;
   line-height: 1.6;
-}
-.fill-off-track {
-  background: var(--color-alarm);
-  color: var(--color-alarm-content);
-}
-.fill-at-risk {
-  background: var(--color-warning);
-  color: var(--color-warning-content);
 }
 .readout .ms {
   padding-left: 1rem;
