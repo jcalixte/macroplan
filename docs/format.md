@@ -252,8 +252,10 @@ a part of the format as the fields:
      the `◯` (no separate original marker is drawn).
    - `▲` **delivered late** — a delivery after `original`; the `◯` baseline is
      **kept** alongside it.
-   - `◌` **forecast** — computed, in a chain only (rule 9). Drawn while
-     undelivered, and only when it differs from the latest estimate.
+   - `◌` **forecast** — computed (rule 9), never earlier than the current week.
+     Drawn while undelivered, and only when it differs from the latest
+     estimate. A top-level feature's forecast is its latest estimate, or the
+     current week once overdue.
 3. **Bar extent.** A feature's bar runs from `start` to its furthest marker. A
    delivered bar ends at its delivery. An **overdue** feature (undelivered, and
    already past its furthest estimate relative to "now") keeps running to the
@@ -278,8 +280,8 @@ a part of the format as the fields:
    rows and labelled with the Break's `name`. Breaks never
    widen the span: only the weeks already in range are shaded. Use `end` to
    pad a plan out to a holiday that falls after its last marker.
-8. **"Now".** The current week (Monday of today) drives overdue extension and the
-   "now" line. It is contextual, not stored in the file.
+8. **"Now".** The current week (Monday of today) drives overdue extension, the
+   floor of every undelivered forecast, and the "now" line. It is contextual, not stored in the file.
 9. **Chains (v2).** Within a top-level tree, two chains are derived from the
    anchor `start`, walking the leaves in reading order:
    - **Planned** — each leaf runs for `weeks` from the week after its
@@ -288,7 +290,9 @@ a part of the format as the fields:
    - **Real** — each leaf starts the week after the **latest** week any earlier
      leaf occupies: its delivery, or its forecast while undelivered. Its
      **forecast** is that start plus its latest Duration (the last
-     `reestimate_weeks` value, else `weeks`), minus one week. Each
+     `reestimate_weeks` value, else `weeks`), minus one week, and never
+     earlier than the current week while undelivered: an overdue leaf pushes
+     the rest of the chain from "now", before it is delivered. Each
      `reestimate_weeks` value draws a `△` at the real start plus that Duration.
      An early delivery pulls later leaves earlier, just as a late one pushes
      them back.

@@ -43,8 +43,8 @@ reestimates = [2026-06-29, 2026-07-13]
 delivered = 2026-07-20
 learning = "Vendor lead time was the real constraint — derisk vendors up front."
 
-# In-flight and overdue: undelivered, `original` already in the past → ◯ only,
-# bar runs to "now". `status` expresses confidence while it's open. Off-track
+# In-flight and overdue: undelivered, `original` already in the past → ◯, then
+# a dashed bar to a ◌ forecast in the current week. `status` expresses confidence while it's open. Off-track
 # means in trouble with no Countermeasure yet: it may state its `problem` only.
 [[feature]]
 name = "Dashboard"

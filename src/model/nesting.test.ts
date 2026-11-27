@@ -6,6 +6,8 @@ import type { FeatureRow, Plan } from "./types"
 const TODAY = "2026-06-17" // week of Mon 2026-06-15
 
 const build = (source: string): Plan => buildPlan(parseMacroplan(source), TODAY)
+// Today at the plan's first week: nothing is overdue yet, so the chain is on plan.
+const onPlan = (source: string): Plan => buildPlan(parseMacroplan(source), "2026-06-01")
 const row = (plan: Plan, name: string): FeatureRow => {
   const r = plan.rows.find((x) => x.name === name)
   if (!r) throw new Error(`no row ${name}`)
@@ -22,14 +24,14 @@ const payments = (vendor = "", integration = "", parent = "") =>
 
 describe("F9 — a parent is derived from its children", () => {
   it("chains planned Durations: each child starts the Week after its predecessor's Original Estimate", () => {
-    const plan = build(payments())
+    const plan = onPlan(payments())
     expect(marks(row(plan, "Vendor contract"))).toEqual(["original@2026-06-08"])
     expect(row(plan, "Integration").startWeek).toBe("2026-06-15")
     expect(marks(row(plan, "Integration"))).toEqual(["original@2026-06-29"])
   })
 
   it("derives the parent's start and Original Estimate from the chain", () => {
-    const p = row(build(payments()), "Payments")
+    const p = row(onPlan(payments()), "Payments")
     expect(p.startWeek).toBe("2026-06-01")
     expect(marks(p)).toEqual(["original@2026-06-29"])
     expect(p.childCount).toBe(2)
@@ -61,7 +63,7 @@ describe("F9 — a parent is derived from its children", () => {
   })
 
   it("derives a parent in the middle of a chain from its own children", () => {
-    const plan = build(
+    const plan = onPlan(
       `[[feature]]\nname = "Checkout"\n` +
         `[[feature]]\nname = "Discovery"\nparent = "Checkout"\nstart = 2026-06-01\nweeks = 2\n` +
         `[[feature]]\nname = "Payments"\nparent = "Checkout"\n` +
@@ -131,7 +133,7 @@ describe("F10 — slips carry along the chain as a Forecast", () => {
   })
 
   it("draws no ◌ for a chain on plan", () => {
-    const plan = build(payments())
+    const plan = onPlan(payments())
     expect(plan.rows.flatMap((r) => r.markers).some((m) => m.kind === "forecast")).toBe(false)
   })
 
@@ -145,6 +147,31 @@ describe("F10 — slips carry along the chain as a Forecast", () => {
     expect(integration.slipCount).toBe(1)
   })
 
+  it("an open child past its estimate is forecast this week, before it is delivered", () => {
+    // Now is 06-15; Vendor contract was due 06-08 and is still open.
+    const vendor = row(build(payments()), "Vendor contract")
+    expect(marks(vendor)).toEqual(["forecast@2026-06-15", "original@2026-06-08"])
+    expect(vendor.committedEndWeek).toBe("2026-06-08")
+    expect(vendor.forecastWeek).toBe("2026-06-15")
+  })
+
+  it("carries an overdue child's slip down the chain and up to the parent", () => {
+    const plan = build(payments())
+    const integration = row(plan, "Integration")
+    expect(integration.startWeek).toBe("2026-06-22")
+    expect(marks(integration)).toEqual(["forecast@2026-07-06", "original@2026-06-29"])
+    expect(marks(row(plan, "Payments"))).toEqual(["forecast@2026-07-06", "original@2026-06-29"])
+  })
+
+  it("an overdue top-level Feature is forecast this week too", () => {
+    const loose = row(
+      build(`[[feature]]\nname = "Loose"\nstart = 2026-06-01\noriginal = 2026-06-08\n`),
+      "Loose",
+    )
+    expect(marks(loose)).toEqual(["forecast@2026-06-15", "original@2026-06-08"])
+    expect(loose.forecastWeek).toBe("2026-06-15")
+  })
+
   it("flags a child delivered before its predecessor, and keeps the parent open", () => {
     const plan = build(payments("", "delivered = 2026-06-22"))
     expect(row(plan, "Integration").outOfOrder).toBe(true)
@@ -154,7 +181,7 @@ describe("F10 — slips carry along the chain as a Forecast", () => {
 })
 
 describe("F11 — visibleRows folds parents", () => {
-  const plan = build(
+  const plan = onPlan(
     `[[feature]]\nname = "Loose"\nstart = 2026-06-01\noriginal = 2026-06-08\n` +
       payments("", "", 'area = "Platform"') +
       `[[feature]]\nname = "Ops"\nstart = 2026-06-01\noriginal = 2026-06-08\narea = "Platform"\n`,

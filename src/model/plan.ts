@@ -104,14 +104,21 @@ function buildTree(
 ): FeatureRow[] {
   const area = root.area
   if (!children.has(root.name)) {
+    const originalWeek = mondayOf(root.original!)
+    const reestimates = root.reestimates.map((r) => mondayOf(r))
+    const deliveredWeek = root.delivered ? mondayOf(root.delivered) : undefined
+    // No chain to forecast from: it lands at its latest estimate, or this week once overdue.
+    const forecast =
+      deliveredWeek == null ? [originalWeek, ...reestimates, nowWeek].reduce(latest) : undefined
     return [
       finishRow(
         root,
         {
           startWeek: mondayOf(root.start!),
-          originalWeek: mondayOf(root.original!),
-          reestimates: root.reestimates.map((r) => mondayOf(r)),
-          deliveredWeek: root.delivered ? mondayOf(root.delivered) : undefined,
+          originalWeek,
+          reestimates,
+          deliveredWeek,
+          forecast,
           outOfOrder: false,
         },
         { depth: 0, childCount: 0, area },
@@ -161,7 +168,9 @@ function buildTree(
       const startWeek = chainEnd == null ? anchor : addWeeks(chainEnd, 1)
       const deliveredWeek = f.delivered ? mondayOf(f.delivered) : undefined
       const duration = f.reestimateWeeks.at(-1) ?? f.weeks!
-      const forecast = addWeeks(startWeek, duration - 1)
+      // An open leaf can't land in the past: once overdue, it lands this week at the earliest.
+      const planned = addWeeks(startWeek, duration - 1)
+      const forecast = deliveredWeek == null ? latest(planned, nowWeek) : planned
       const outOfOrder =
         deliveredWeek != null &&
         (earlierOpen || (earlierDelivered != null && earlierDelivered > deliveredWeek))
@@ -223,7 +232,7 @@ interface Timing {
   originalWeek: WeekId
   reestimates: WeekId[]
   deliveredWeek?: WeekId
-  forecast?: WeekId // only Features in a chain have one
+  forecast?: WeekId // undefined once delivered
   outOfOrder: boolean
 }
 
