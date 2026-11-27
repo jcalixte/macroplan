@@ -15,6 +15,7 @@ const {
   plan,
   error,
   hints,
+  versionHint,
   expanded,
   toggleExpanded,
   setExpanded,
@@ -343,6 +344,7 @@ const paletteAria = ariaChord(PALETTE)
           v-model="source"
           :error="error"
           :hints="hints"
+          :version-hint="versionHint"
           class="min-h-0 flex-1"
         />
       </section>

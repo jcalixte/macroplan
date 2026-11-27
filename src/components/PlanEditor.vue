@@ -5,8 +5,13 @@ import { getCompletions, type CompletionContext } from "./completion"
 import { fitPopup } from "./popupFit"
 
 const props = withDefaults(
-  defineProps<{ modelValue: string; error: string | null; hints?: string[] }>(),
-  { hints: () => [] },
+  defineProps<{
+    modelValue: string
+    error: string | null
+    hints?: string[]
+    versionHint?: string | null
+  }>(),
+  { hints: () => [], versionHint: null },
 )
 const emit = defineEmits<{ "update:modelValue": [value: string] }>()
 
@@ -230,12 +235,15 @@ function syncScroll() {
     <div v-if="error" class="editor-error" role="alert">
       <span class="font-semibold">Can’t parse:</span> {{ error }}
     </div>
-    <div v-else-if="hints.length" class="editor-hint" role="status">
-      <span class="font-semibold">Too long for one line:</span>
-      <ul>
-        <li v-for="hint in hints" :key="hint">{{ hint }}</li>
-      </ul>
-    </div>
+    <template v-else>
+      <div v-if="hints.length" class="editor-hint" role="status">
+        <span class="font-semibold">Too long for one line:</span>
+        <ul>
+          <li v-for="hint in hints" :key="hint">{{ hint }}</li>
+        </ul>
+      </div>
+      <div v-if="versionHint" class="editor-version" role="status">{{ versionHint }}</div>
+    </template>
   </div>
 </template>
 
@@ -356,6 +364,14 @@ function syncScroll() {
   margin: 0.2rem 0 0;
   padding-left: 1rem;
   list-style: disc;
+}
+/* Information, not advice: a quiet line, no warning rule. */
+.editor-version {
+  padding: 0.35rem 1rem;
+  font-size: 0.7rem;
+  background: var(--color-base-200);
+  color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
+  border-top: 1px solid var(--color-base-300);
 }
 .editor-error {
   padding: 0.6rem 1rem;

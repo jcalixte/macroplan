@@ -89,3 +89,19 @@ describe("PlanEditor length hints", () => {
     expect(w.find(".editor-error").exists()).toBe(true)
   })
 })
+
+describe("PlanEditor version hint", () => {
+  const hint = "Read as macroplan_version 3 (latest): no version declared"
+
+  it("shows which version the plan is read as", async () => {
+    const w = mountEditor()
+    await w.setProps({ versionHint: hint })
+    expect(w.find(".editor-version").text()).toBe(hint)
+  })
+
+  it("gives way to a parse error", async () => {
+    const w = mountEditor()
+    await w.setProps({ versionHint: hint, error: "boom" })
+    expect(w.find(".editor-version").exists()).toBe(false)
+  })
+})

@@ -2,7 +2,7 @@ import { ref, shallowRef, computed, watch } from "vue"
 import * as v from "valibot"
 import { parseMacroplan } from "../model/parse"
 import { buildPlan } from "../model/plan"
-import { longTextHints } from "../model/hints"
+import { longTextHints, versionHint } from "../model/hints"
 import type { Plan } from "../model/types"
 import { SAMPLE_PLAN } from "../data/sample"
 
@@ -108,9 +108,10 @@ export function useMacroplan() {
     },
   })
 
-  const parsed = computed<{ plan: Plan | null; error: string | null }>(() => {
+  const parsed = computed<{ plan: Plan | null; error: string | null; version?: number }>(() => {
     try {
-      return { plan: buildPlan(parseMacroplan(source.value)), error: null }
+      const raw = parseMacroplan(source.value)
+      return { plan: buildPlan(raw), error: null, version: raw.version }
     } catch (e) {
       return { plan: null, error: e instanceof Error ? e.message : String(e) }
     }
@@ -140,6 +141,7 @@ export function useMacroplan() {
     plan: computed(() => parsed.value.plan ?? lastGood.value),
     error: computed(() => parsed.value.error),
     hints: computed(() => (parsed.value.plan ? longTextHints(parsed.value.plan) : [])),
+    versionHint: computed(() => (parsed.value.plan ? versionHint(parsed.value.version) : null)),
     expanded: computed<ReadonlySet<string>>(() => new Set(active.value.expanded ?? [])),
     toggleExpanded: (name: string) => {
       const p = active.value
