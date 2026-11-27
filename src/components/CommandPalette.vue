@@ -182,7 +182,6 @@ function onDialogClick(e: MouseEvent) {
   --pal-gap: 0.5rem;
   --pal-row: 2.75rem; /* 44px touch target */
   --pal-width: min(40rem, calc(100vw - 2rem));
-  --pal-dur: 160ms;
 
   width: var(--pal-width);
   max-width: none;
@@ -197,27 +196,15 @@ function onDialogClick(e: MouseEvent) {
 .palette::backdrop {
   background: color-mix(in oklab, var(--color-base-content) 28%, transparent);
 }
-.palette[open] .panel {
-  animation: rise var(--pal-dur) cubic-bezier(0.2, 0.8, 0.2, 1);
-}
+/* Opened from the keyboard many times a session: no travel, just a 100ms fade
+   so the backdrop does not flash in. Closing is instant. */
+.palette[open] .panel,
 .palette[open]::backdrop {
-  animation: fade var(--pal-dur) ease-out;
-}
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(-0.5rem) scale(0.99);
-  }
+  animation: fade var(--dur-press) var(--ease-out) backwards;
 }
 @keyframes fade {
   from {
     opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .palette[open] .panel,
-  .palette[open]::backdrop {
-    animation: none;
   }
 }
 
