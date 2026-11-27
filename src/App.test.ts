@@ -143,14 +143,12 @@ describe("App — keyboard layer", () => {
     field.remove()
   })
 
-  it("downloads the .toml on Mod+S, even from inside a field, and stops the browser save", async () => {
+  it("leaves Mod+S to the browser", async () => {
+    vi.mocked(downloadSource).mockClear()
     mount(App, { global: { stubs }, attachTo: document.body })
-    const field = document.createElement("textarea")
-    document.body.append(field)
-    const e = press({ key: "s", ...ctrl }, field)
-    expect(e.defaultPrevented).toBe(true)
-    expect(downloadSource).toHaveBeenCalled()
-    field.remove()
+    const e = press({ key: "s", ...ctrl })
+    expect(e.defaultPrevented).toBe(false)
+    expect(downloadSource).not.toHaveBeenCalled()
   })
 
   it("opens the palette on Mod+K and on ?", async () => {
