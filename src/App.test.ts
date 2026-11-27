@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, beforeEach, vi } from "vitest"
-import { mount } from "@vue/test-utils"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
+import { mount, enableAutoUnmount } from "@vue/test-utils"
 import { nextTick } from "vue"
 
 // downloadSource performs a real DOM/Blob download; mock it so we can assert
@@ -27,6 +27,16 @@ function dropdownLinks(w: ReturnType<typeof mountApp>) {
 }
 
 beforeEach(() => localStorage.clear())
+// The keyboard layer listens on window; a leftover App would claim keys first.
+enableAutoUnmount(afterEach)
+
+// happy-dom lacks the modal API the palette's <dialog> uses.
+HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+  this.setAttribute("open", "")
+}
+HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
+  this.removeAttribute("open")
+}
 
 describe("App — plan library wiring", () => {
   it("shows the active plan name in the header switcher", () => {
@@ -85,5 +95,74 @@ describe("App — plan library wiring", () => {
     const [src, filename] = (downloadSource as ReturnType<typeof vi.fn>).mock.calls[0]
     expect(src).toBe(SAMPLE_PLAN)
     expect(filename).toBe("macroplan-q3-checkout-revamp.toml")
+  })
+})
+
+describe("App — keyboard layer", () => {
+  // Global shortcuts listen on window; dispatch there with the event's target
+  // defaulting to the body (outside any text field).
+  function press(init: KeyboardEventInit, target: EventTarget = document.body) {
+    const e = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init })
+    target.dispatchEvent(e)
+    return e
+  }
+  const ctrl = /Mac/.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true }
+
+  it("switches panes with Alt+1/2/3 by physical key", async () => {
+    const w = mount(App, { global: { stubs }, attachTo: document.body })
+    press({ key: "¡", code: "Digit1", altKey: true })
+    await nextTick()
+    expect(w.find('[aria-keyshortcuts="Alt+1"]').attributes("aria-pressed")).toBe("true")
+    press({ key: "3", code: "Digit3", altKey: true })
+    await nextTick()
+    expect(w.find('[aria-keyshortcuts="Alt+3"]').attributes("aria-pressed")).toBe("true")
+    press({ key: "2", code: "Digit2", altKey: true }) // back to the default for later tests
+  })
+
+  it("creates a plan on N and cycles plans with ] and [", async () => {
+    const w = mount(App, { global: { stubs }, attachTo: document.body })
+    press({ key: "n" })
+    await nextTick()
+    expect(dropdownLinks(w)).toHaveLength(4)
+    expect(w.find(".dropdown .btn").text()).toContain("Untitled")
+    press({ key: "]" })
+    await nextTick()
+    expect(w.find(".dropdown .btn").text()).toContain("Q3 — Checkout revamp")
+    press({ key: "[" })
+    await nextTick()
+    expect(w.find(".dropdown .btn").text()).toContain("Untitled")
+  })
+
+  it("ignores bare-letter shortcuts while typing in a field", async () => {
+    const w = mount(App, { global: { stubs }, attachTo: document.body })
+    const field = document.createElement("textarea")
+    document.body.append(field)
+    press({ key: "n" }, field)
+    await nextTick()
+    expect(dropdownLinks(w)).toHaveLength(3)
+    field.remove()
+  })
+
+  it("downloads the .toml on Mod+S, even from inside a field, and stops the browser save", async () => {
+    mount(App, { global: { stubs }, attachTo: document.body })
+    const field = document.createElement("textarea")
+    document.body.append(field)
+    const e = press({ key: "s", ...ctrl }, field)
+    expect(e.defaultPrevented).toBe(true)
+    expect(downloadSource).toHaveBeenCalled()
+    field.remove()
+  })
+
+  it("opens the palette on Mod+K and on ?", async () => {
+    const w = mount(App, { global: { stubs }, attachTo: document.body })
+    const palette = w.findComponent({ name: "CommandPalette" })
+    press({ key: "k", ...ctrl })
+    await nextTick()
+    expect(palette.props("open")).toBe(true)
+    palette.vm.$emit("close")
+    await nextTick()
+    press({ key: "?", shiftKey: true })
+    await nextTick()
+    expect(palette.props("open")).toBe(true)
   })
 })

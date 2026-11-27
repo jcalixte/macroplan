@@ -164,6 +164,8 @@ const highlighted = computed(() => {
   return hl.codeToHtml(code, { lang: "toml", theme: "github-light" })
 })
 
+defineExpose({ focus: () => textarea.value?.focus() })
+
 function escapeHtml(s: string): string {
   return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!)
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue"
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue"
 import { useMacroplan } from "./composables/useMacroplan"
 import { usePngExport, exportFilename } from "./composables/usePngExport"
 import { sourceFilename, downloadSource } from "./composables/useSourceExport"
@@ -7,6 +7,8 @@ import PlanEditor from "./components/PlanEditor.vue"
 import MacroplanGrid from "./components/MacroplanGrid.vue"
 import PlanSwitcher from "./components/PlanSwitcher.vue"
 import PlanHeader from "./components/PlanHeader.vue"
+import CommandPalette, { type Command } from "./components/CommandPalette.vue"
+import { matches, isTypingTarget, chordKeys, ariaChord, type Chord } from "./composables/shortcuts"
 
 const {
   source,
@@ -14,6 +16,7 @@ const {
   error,
   expanded,
   toggleExpanded,
+  setExpanded,
   plans,
   activeId,
   selectPlan,
@@ -23,7 +26,10 @@ const {
 const { busy, toast, copyPng, downloadPng } = usePngExport()
 
 const exportRoot = ref<HTMLElement>()
+const editor = ref<InstanceType<typeof PlanEditor>>()
+const cancelDelete = ref<HTMLButtonElement>()
 const confirmingDelete = ref(false)
+const paletteOpen = ref(false)
 
 // Which panes are visible: the Source editor, the rendered Macroplan, or both.
 // Kept in the URL (?view=…) so a layout is shareable/bookmarkable, not persisted.
@@ -59,6 +65,187 @@ function confirmDelete() {
   deletePlan(activeId.value)
   confirmingDelete.value = false
 }
+
+// Land on Cancel, so Enter right after opening the dialog is the safe choice.
+watch(confirmingDelete, (open) => open && nextTick(() => cancelDelete.value?.focus()))
+
+// ── Keyboard layer ───────────────────────────────────────────────────────────
+// One list drives both the palette and the global shortcuts, so a chord shown
+// in the palette is always the chord that works.
+
+const PALETTE: Chord = { key: "k", mod: true }
+
+function focusSource() {
+  if (!showSource.value) mode.value = "split"
+  nextTick(() => editor.value?.focus())
+}
+
+function cyclePlan(delta: number) {
+  const list = plans.value
+  const i = list.findIndex((p) => p.id === activeId.value)
+  selectPlan(list[(i + delta + list.length) % list.length].id)
+}
+
+const parentNames = computed(() =>
+  (plan.value?.rows ?? []).filter((r) => r.childCount > 0).map((r) => r.name),
+)
+
+const commands = computed<Command[]>(() => {
+  const list: Command[] = [
+    {
+      id: "view-source",
+      group: "View",
+      label: "Show the source only",
+      chord: { code: "Digit1", alt: true },
+      current: mode.value === "source",
+      run: () => (mode.value = "source"),
+    },
+    {
+      id: "view-split",
+      group: "View",
+      label: "Show source and Macroplan side by side",
+      chord: { code: "Digit2", alt: true },
+      current: mode.value === "split",
+      run: () => (mode.value = "split"),
+    },
+    {
+      id: "view-macroplan",
+      group: "View",
+      label: "Show the Macroplan only",
+      chord: { code: "Digit3", alt: true },
+      current: mode.value === "macroplan",
+      run: () => (mode.value = "macroplan"),
+    },
+    {
+      id: "focus-source",
+      group: "View",
+      label: "Edit the source",
+      chord: { key: "e" },
+      run: focusSource,
+    },
+  ]
+  if (parentNames.value.length) {
+    list.push(
+      {
+        id: "unfold-all",
+        group: "View",
+        label: "Unfold every parent Feature",
+        run: () => setExpanded(parentNames.value),
+      },
+      {
+        id: "fold-all",
+        group: "View",
+        label: "Fold every parent Feature",
+        run: () => setExpanded([]),
+      },
+    )
+  }
+
+  list.push({ id: "new", group: "Plan", label: "New plan", chord: { key: "n" }, run: newPlan })
+  if (plans.value.length > 1) {
+    list.push(
+      {
+        id: "next",
+        group: "Plan",
+        label: "Next plan",
+        chord: { key: "]" },
+        run: () => cyclePlan(1),
+      },
+      {
+        id: "prev",
+        group: "Plan",
+        label: "Previous plan",
+        chord: { key: "[" },
+        run: () => cyclePlan(-1),
+      },
+    )
+  }
+  list.push({
+    id: "delete",
+    group: "Plan",
+    label: `Delete “${activeName.value}”…`,
+    run: () => (confirmingDelete.value = true),
+  })
+
+  if (plan.value && !busy.value) {
+    list.push(
+      {
+        id: "copy-png",
+        group: "Export",
+        label: "Copy the Macroplan as PNG",
+        chord: { key: "c" },
+        run: () => copyPng(exportRoot.value),
+      },
+      {
+        id: "download-png",
+        group: "Export",
+        label: "Download the Macroplan as PNG",
+        chord: { key: "d" },
+        run: () => downloadPng(exportRoot.value, exportFilename(plan.value?.title ?? "")),
+      },
+    )
+  }
+  list.push({
+    id: "download-toml",
+    group: "Export",
+    label: "Download the source as .toml",
+    chord: { key: "s", mod: true },
+    run: downloadToml,
+  })
+
+  for (const p of plans.value) {
+    list.push({
+      id: `open-${p.id}`,
+      group: "Switch plan",
+      label: p.name,
+      current: p.id === activeId.value,
+      run: () => selectPlan(p.id),
+    })
+  }
+  return list
+})
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.defaultPrevented || e.isComposing) return
+  if (paletteOpen.value) return // the palette's own dialog handles its keys
+  if (confirmingDelete.value) {
+    if (e.key === "Escape") confirmingDelete.value = false
+    return
+  }
+  if (matches(e, PALETTE)) {
+    e.preventDefault()
+    paletteOpen.value = true
+    return
+  }
+  // Escape leaves the editor, handing the keyboard to the bare-key shortcuts.
+  // The completion popup claims Escape first (it calls preventDefault).
+  if (e.key === "Escape" && e.target instanceof HTMLTextAreaElement) {
+    e.target.blur()
+    return
+  }
+  const typing = isTypingTarget(e.target)
+  if (!typing && matches(e, { key: "?" })) {
+    e.preventDefault()
+    paletteOpen.value = true
+    return
+  }
+  for (const c of commands.value) {
+    if (!c.chord) continue
+    const bare = !c.chord.mod && !c.chord.alt
+    if (bare && typing) continue
+    if (matches(e, c.chord)) {
+      e.preventDefault()
+      c.run()
+      return
+    }
+  }
+}
+
+onMounted(() => window.addEventListener("keydown", onKeydown))
+onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
+
+const paletteKeys = chordKeys(PALETTE)
+const paletteAria = ariaChord(PALETTE)
 </script>
 
 <template>
@@ -79,6 +266,7 @@ function confirmDelete() {
           class="btn btn-sm join-item"
           :class="{ 'btn-active': mode === 'source' }"
           :aria-pressed="mode === 'source'"
+          aria-keyshortcuts="Alt+1"
           title="Show only the TOML source"
           @click="mode = 'source'"
         >
@@ -88,6 +276,7 @@ function confirmDelete() {
           class="btn btn-sm join-item"
           :class="{ 'btn-active': mode === 'split' }"
           :aria-pressed="mode === 'split'"
+          aria-keyshortcuts="Alt+2"
           title="Show the source and the Macroplan side by side"
           @click="mode = 'split'"
         >
@@ -97,6 +286,7 @@ function confirmDelete() {
           class="btn btn-sm join-item"
           :class="{ 'btn-active': mode === 'macroplan' }"
           :aria-pressed="mode === 'macroplan'"
+          aria-keyshortcuts="Alt+3"
           title="Show only the rendered Macroplan"
           @click="mode = 'macroplan'"
         >
@@ -104,12 +294,35 @@ function confirmDelete() {
         </button>
       </div>
       <button
-        class="btn btn-ghost btn-sm"
+        class="btn btn-ghost btn-sm palette-trigger max-sm:btn-square"
+        :aria-keyshortcuts="`${paletteAria} ?`"
+        title="Run any command from the keyboard"
+        @click="paletteOpen = true"
+      >
+        <svg class="icon sm:hidden" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M7 9a2 2 0 1 1 2 -2v10a2 2 0 1 1 -2 -2h10a2 2 0 1 1 -2 2v-10a2 2 0 1 1 2 2h-10"
+          />
+        </svg>
+        <span class="max-sm:sr-only">Commands</span>
+        <span class="keys max-sm:hidden" aria-hidden="true">
+          <kbd v-for="k in paletteKeys" :key="k">{{ k }}</kbd>
+        </span>
+      </button>
+      <button
+        class="btn btn-ghost btn-sm btn-square"
         :disabled="busy"
         title="Delete this plan"
+        aria-label="Delete this plan"
         @click="confirmingDelete = true"
       >
-        🗑
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 7l16 0" />
+          <path d="M10 11l0 6" />
+          <path d="M14 11l0 6" />
+          <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+          <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+        </svg>
       </button>
     </header>
 
@@ -124,7 +337,7 @@ function confirmDelete() {
         <div class="pane-bar">
           <span class="pane-label">Source (TOML)</span>
         </div>
-        <PlanEditor v-model="source" :error="error" class="min-h-0 flex-1" />
+        <PlanEditor ref="editor" v-model="source" :error="error" class="min-h-0 flex-1" />
       </section>
 
       <section v-if="showMacroplan" class="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -194,7 +407,9 @@ function confirmDelete() {
           This removes the plan from your library. Download its .toml first if you want to keep it.
         </p>
         <div class="modal-action">
-          <button class="btn btn-sm" @click="confirmingDelete = false">Cancel</button>
+          <button ref="cancelDelete" class="btn btn-sm" @click="confirmingDelete = false">
+            Cancel
+          </button>
           <button class="btn btn-sm btn-error" @click="confirmDelete">Delete</button>
         </div>
       </div>
@@ -202,6 +417,8 @@ function confirmDelete() {
         <button>close</button>
       </form>
     </dialog>
+
+    <CommandPalette :open="paletteOpen" :commands="commands" @close="paletteOpen = false" />
 
     <div v-if="toast" class="toast toast-end">
       <div class="alert" :class="toast.kind === 'ok' ? 'alert-success' : 'alert-error'">
@@ -232,12 +449,36 @@ function confirmDelete() {
   font-weight: 600;
   color: var(--color-ink-warning);
 }
+.icon,
 .pane-bar svg {
+  width: 1rem;
+  height: 1rem;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+.palette-trigger {
+  gap: 0.5rem;
+  font-weight: 500;
+}
+.keys {
+  display: inline-flex;
+  gap: 0.125rem;
+}
+.keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--color-base-300);
+  border-bottom-width: 2px;
+  border-radius: 0.25rem;
+  background: var(--color-base-200);
+  font-size: 0.6875rem;
+  color: var(--color-ink-muted);
 }
 .empty {
   display: grid;
