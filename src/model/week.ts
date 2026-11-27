@@ -57,3 +57,8 @@ export function weekLabel(week: WeekId): string {
     timeZone: "UTC",
   })
 }
+
+/** Whole weeks from one Monday WeekId to another (negative if `to` is earlier). */
+export function weeksBetween(from: WeekId, to: WeekId): number {
+  return Math.round((utcNoon(to).getTime() - utcNoon(from).getTime()) / (7 * 86_400_000))
+}

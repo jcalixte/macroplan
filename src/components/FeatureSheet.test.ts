@@ -40,22 +40,48 @@ describe("FeatureSheet", () => {
     expect(text).toContain("Spike a fallback on the in-house index.")
   })
 
-  it("lists the timeline with week labels", () => {
+  it("lists the timeline with week labels and the weeks between steps", () => {
     const items = mountSheet("Payments")
       .findAll(".timeline li")
       .map((li) =>
         li
           .findAll("span")
           .map((s) => s.text())
+          .filter(Boolean)
           .join(" "),
       )
     expect(items).toEqual([
-      "┣ Start Jun 01",
-      "◯ Original estimate Jun 15",
-      "△ Re-estimate 1 Jun 29",
-      "△ Re-estimate 2 Jul 13",
-      "▲ Delivered late Jul 20",
+      "Start Jun 01",
+      "+2 wk ◯ Original estimate Jun 15",
+      "+2 wk △ Re-estimate 1 Jun 29",
+      "+2 wk △ Re-estimate 2 Jul 13",
+      "+1 wk ▲ Delivered late Jul 20",
     ])
+  })
+
+  it("dashes the leg into a slipped Forecast", () => {
+    const late = buildPlan(
+      parseMacroplan(`[[feature]]
+name = "Billing"
+start = 2026-06-01
+original = 2026-06-08
+`),
+      "2026-11-23",
+    )
+    const w = mount(FeatureSheet, {
+      props: { facts: featureFacts(late, "Billing") },
+      attachTo: document.body,
+    })
+    const lis = w.findAll(".timeline li")
+    expect(lis.map((li) => li.find(".what").text())).toEqual([
+      "Start",
+      "Original estimate",
+      "Forecast",
+    ])
+    expect(lis[1].classes()).toContain("leg-dashed")
+    expect(lis[0].classes()).not.toContain("leg-dashed")
+    expect(lis[2].find("svg.tri-dash").exists()).toBe(true)
+    expect(lis[2].find(".gap").text()).toBe("+24 wk")
   })
 
   it("shows the Learning of a delivered Feature", () => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, useId } from "vue"
 import type { FeatureFacts } from "../model/facts"
-import { weekLabel } from "../model/week"
+import { weekLabel, weeksBetween } from "../model/week"
 import { GLYPH, MARKER_CLASS, TONE_TEXT, chipClass } from "./glyphs"
 import { rowTone, trouble, stateWord } from "../model/status"
 
@@ -34,11 +34,27 @@ const context = computed(() => {
   return [r.area, r.parent && `in ${r.parent}`].filter(Boolean).join(" · ")
 })
 
+// The grid's bar turned upright. Each step carries the weeks since the one
+// before it, so a long slip reads as a long gap, not just a later date; the leg
+// into a slipped Forecast is dashed, as on the grid.
+const steps = computed(() => {
+  const f = props.facts
+  const r = row.value
+  if (!f || !r) return []
+  return f.timeline.map((t, i) => {
+    const prev = f.timeline[i - 1]
+    const slip = t.kind === "forecast" && t.week === r.forecastWeek
+    return {
+      ...t,
+      key: t.kind + t.week + t.label,
+      slip,
+      gap: prev ? weeksBetween(prev.week, t.week) : 0,
+    }
+  })
+})
+
 function glyphOf(kind: string): string {
-  return kind === "start" ? "┣" : GLYPH[kind as keyof typeof GLYPH]
-}
-function glyphClass(kind: string): string {
-  return kind === "start" ? "text-base-content/60" : MARKER_CLASS[kind as keyof typeof MARKER_CLASS]
+  return GLYPH[kind as keyof typeof GLYPH]
 }
 
 // A click on the ::backdrop lands on the <dialog> itself.
@@ -101,13 +117,11 @@ function onDialogClick(e: MouseEvent) {
       <section class="block">
         <h4>Timeline</h4>
         <ol class="timeline" :class="TONE_TEXT[rowTone(row)]">
-          <li v-for="t in facts.timeline" :key="t.kind + t.week + t.label">
-            <span class="glyph" :class="glyphClass(t.kind)" aria-hidden="true">
-              <svg
-                v-if="t.kind === 'forecast' && t.week === row.forecastWeek"
-                class="tri-dash"
-                viewBox="0 0 12 12"
-              >
+          <li v-for="(t, i) in steps" :key="t.key" :class="{ 'leg-dashed': steps[i + 1]?.slip }">
+            <span v-if="t.gap > 0" class="gap">+{{ t.gap }} wk</span>
+            <span v-if="t.kind === 'start'" class="glyph cap" aria-hidden="true"></span>
+            <span v-else class="glyph" :class="MARKER_CLASS[t.kind]" aria-hidden="true">
+              <svg v-if="t.slip" class="tri-dash" viewBox="0 0 12 12">
                 <path d="M6 1.6 L11 10.4 H1 Z" /></svg
               ><template v-else>{{ glyphOf(t.kind) }}</template>
             </span>
@@ -304,22 +318,58 @@ h4 {
 .milestones li {
   grid-template-columns: 1.5rem 1fr auto auto;
 }
+/* --rail: the tone, pre-mixed onto the surface so the rule, the cap and any
+   overlap between them stay one solid colour. */
+.timeline {
+  --rail: color-mix(in oklab, currentColor 55%, var(--color-base-100));
+}
+.timeline li {
+  min-height: 2.5rem;
+}
+/* The leg to the next step: centre of this glyph to centre of the next. Each
+   glyph wears a halo of the surface, so the rule reads as passing behind it. */
 .timeline li:not(:last-child)::after {
   content: "";
   position: absolute;
   left: calc(0.75rem - 1px);
-  top: 1.35rem;
-  bottom: -0.65rem;
+  top: 50%;
+  height: 100%;
   width: 2px;
-  background: currentColor;
-  opacity: 0.55;
+  background: var(--rail);
+}
+.timeline li.leg-dashed::after {
+  background: repeating-linear-gradient(to bottom, var(--rail) 0 4px, transparent 4px 7px);
 }
 .timeline .glyph {
   position: relative;
   z-index: 1;
   justify-self: center;
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
   font-size: 1rem;
   line-height: 1;
+  border-radius: 50%;
+  background: var(--color-base-100);
+}
+/* Start: the grid's riser, turned to cap the top of the upright bar. */
+.timeline .cap {
+  width: 0.875rem;
+  height: 2px;
+  border-radius: 0;
+  background: var(--rail);
+}
+/* Weeks since the step above, set on the leg it measures. */
+.timeline .gap {
+  position: absolute;
+  top: 0;
+  left: 2rem;
+  translate: 0 -50%;
+  font-size: 0.6875rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-muted);
 }
 .timeline .what,
 .milestones .what {
