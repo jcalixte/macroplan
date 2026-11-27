@@ -4,10 +4,28 @@
 @plugin "daisyui/theme" {
   name: "light";
   default: true;
-  --color-primary: #006266;
+  --color-primary: #006266; /* 7.15:1 on base-100 */
+  --color-primary-content: #ffffff;
+}
+@plugin "daisyui/theme" {
+  name: "dark";
+  prefersdark: true;
+  --color-primary: #4fb3b8; /* 6.39:1 on dark base-100 */
+  --color-primary-content: #0d1117;
 }
 
 @theme {
   --font-sans: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Status inks for marks and text drawn on base-100. DaisyUI's success and
+     warning are fill colours (1.96:1 and 1.76:1 on white), too pale for a 2px
+     line or a glyph. Mixing toward base-content darkens them on the light theme
+     and lightens them on the dark one. Measured on base-100: light 4.8 / 4.4 /
+     4.5, dark ≥ 7. */
+  --color-ink-success: color-mix(in oklab, var(--color-success) 60%, var(--color-base-content));
+  --color-ink-warning: color-mix(in oklab, var(--color-warning) 60%, var(--color-base-content));
+  --color-ink-error: color-mix(in oklab, var(--color-error) 75%, var(--color-base-content));
+  /* Secondary text: 5.4:1 light, 5.7:1 dark — the floor for small labels. */
+  --color-ink-muted: color-mix(in oklab, var(--color-base-content) 60%, var(--color-base-100));
 }
