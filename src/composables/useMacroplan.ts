@@ -146,6 +146,10 @@ export function useMacroplan() {
       else open.add(name)
       p.expanded = [...open]
     },
+    /** Replace the unfolded set wholesale — Unfold all / Fold all. */
+    setExpanded: (names: string[]) => {
+      active.value.expanded = [...names]
+    },
     plans: computed(() => lib.value.plans.map((p) => ({ id: p.id, name: p.name }))),
     activeId: computed(() => lib.value.activeId),
     selectPlan: (id: string) => {
