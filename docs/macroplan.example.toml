@@ -44,8 +44,9 @@ delivered = 2026-07-20
 learning = "Vendor lead time was the real constraint — derisk vendors up front."
 
 # In-flight and overdue: undelivered, `original` already in the past → ◯, then
-# a dashed bar to a ◌ forecast in the current week. `status` expresses confidence while it's open. Off-track
-# means in trouble with no Countermeasure yet: it may state its `problem` only.
+# a dashed bar to a dashed △ Forecast in the current week — a slip nobody has
+# recorded yet. `status` expresses confidence while it's open. Off-track means
+# in trouble with no Countermeasure yet: it may state its `problem` only.
 [[feature]]
 name = "Dashboard"
 area = "Product"
@@ -75,11 +76,11 @@ original = 2026-07-06
 status = "on-track"
 
 # Nested Features (v2): a parent carries no dates — they are derived from its
-# children, which chain in file order. Children plan in `weeks`; only the first
-# leaf of the chain sets `start`, the anchor. Planned: Vendor contract 06-01…06-08
+# children, which chain in file order. Children plan in `weeks`; the first leaf
+# of the chain sets `start`, the anchor. Planned: Vendor contract 06-01…06-08
 # (◯ 06-08), Integration 06-15…06-29 (◯ 06-29). Vendor contract landed a week
-# late, so Integration can't start before 06-22: its Forecast ◌ is 07-06, drawn
-# after its unmoved ◯, and Checkout flow inherits the same Forecast.
+# late, so Integration can't start before 06-22: its Forecast is 07-06, a
+# dashed △ after its unmoved ◯.
 [[feature]]
 name = "Checkout flow"
 area = "Product"
@@ -99,8 +100,19 @@ name = "Integration"
 parent = "Checkout flow"
 weeks = 3
 
-# A re-estimate on a child revises its Duration: `△` lands at its real start
-# plus 3 weeks, and moves with the chain.
+# A later leaf with its own `start` is unlinked from its predecessor: it starts
+# 06-29 whatever Integration does — overlapping it here — so Integration's slip
+# never reaches it, and the chain carries on from it.
+[[feature]]
+name = "Load testing"
+parent = "Checkout flow"
+start = 2026-06-29
+weeks = 2
+
+# A re-estimate on a child revises its Duration: Rollout is planned 07-13…07-20
+# after Load testing (◯ 07-20); its `△` lands at its real start plus 3 weeks
+# (07-27), and moves with the chain. Checkout flow's Original Estimate and
+# Forecast are the latest of its children's: ◯ 07-20, Forecast 07-27.
 [[feature]]
 name = "Rollout"
 parent = "Checkout flow"

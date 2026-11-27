@@ -217,7 +217,7 @@ describe("reference example (docs/macroplan.example.toml)", () => {
   it("conforms to the format the parser implements", () => {
     const raw = parseMacroplan(exampleToml)
     expect(raw.title).toBe("Q3 — Checkout revamp")
-    expect(raw.features).toHaveLength(9)
+    expect(raw.features).toHaveLength(10)
     expect(raw.milestones).toHaveLength(3)
   })
 
@@ -232,12 +232,13 @@ describe("reference example (docs/macroplan.example.toml)", () => {
       "Checkout flow", // Product, followed by its subtree
       "Vendor contract",
       "Integration",
+      "Load testing",
       "Rollout",
     ])
     expect(plan.bands).toEqual([
       { area: undefined, start: 0, span: 1 },
       { area: "Platform", start: 1, span: 2 },
-      { area: "Product", start: 3, span: 6 },
+      { area: "Product", start: 3, span: 7 },
     ])
   })
 
@@ -249,9 +250,11 @@ describe("reference example (docs/macroplan.example.toml)", () => {
         .markers.map((m) => `${m.kind}@${m.week}`)
         .sort()
     expect(at("Integration")).toEqual(["forecast@2026-07-06", "original@2026-06-29"])
-    // Rollout: planned 07-06…07-13; really starts 07-13, re-estimated to 3 weeks.
-    expect(at("Rollout")).toEqual(["original@2026-07-13", "reestimate@2026-07-27"])
-    expect(at("Checkout flow")).toEqual(["forecast@2026-07-27", "original@2026-07-13"])
+    // Load testing: unlinked by its own start, so Integration's slip doesn't reach it.
+    expect(at("Load testing")).toEqual(["original@2026-07-06"])
+    // Rollout: planned 07-13…07-20 after Load testing; re-estimated to 3 weeks.
+    expect(at("Rollout")).toEqual(["original@2026-07-20", "reestimate@2026-07-27"])
+    expect(at("Checkout flow")).toEqual(["forecast@2026-07-27", "original@2026-07-20"])
   })
 })
 
