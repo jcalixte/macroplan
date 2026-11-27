@@ -58,7 +58,7 @@ export type MarkerKind =
   | "reestimate" // △ a slip to a later week
   | "delivered-on-time" // ◉ delivered on/before the Original Estimate
   | "delivered-late" // ▲ delivered after the Original Estimate
-  | "forecast" // ◌ computed: where a slip (or early Delivery) up the chain now puts this Feature
+  | "forecast" // dashed △ when later than the latest estimate, ◌ when earlier — computed: where a slip (or early Delivery) up the chain now puts this Feature
 
 export interface Marker {
   week: WeekId

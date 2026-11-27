@@ -231,10 +231,20 @@ describe("MacroplanGrid — nested Features (F10, F11)", () => {
     expect(mountNested().find(".namecell .below").exists()).toBe(false)
   })
 
-  it("draws the Forecast ◌ and a dashed bar up to it", () => {
+  it("draws a later Forecast as a dashed △, with a dashed bar up to it", () => {
     const w = mountNested(["Payments"])
-    expect(w.text()).toContain("◌")
+    expect(w.findAll(".cell .tri-dash").length).toBeGreaterThan(0)
+    expect(w.findAll(".cell .glyph").some((g) => g.text() === "◌")).toBe(false)
     expect(w.findAll(".bar.dashed").length).toBeGreaterThan(0)
+  })
+
+  it("draws an earlier Forecast as ◌, with nothing dashed", () => {
+    const early = nested.replace("delivered = 2026-06-15", "delivered = 2026-06-01")
+    const plan = buildPlan(parseMacroplan(early), "2026-06-03")
+    const w = mount(MacroplanGrid, { props: { plan, expanded: new Set(["Payments"]) } })
+    expect(w.findAll(".cell .glyph").some((g) => g.text() === "◌")).toBe(true)
+    expect(w.findAll(".cell .tri-dash").length).toBe(0)
+    expect(w.findAll(".bar.dashed").length).toBe(0)
   })
 })
 

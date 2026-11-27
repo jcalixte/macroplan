@@ -142,6 +142,7 @@ interface Cell {
   isStart: boolean
   glyph: string
   glyphCls: string
+  slipForecast: boolean // a Forecast after the latest estimate: a dashed △, not ◌
 }
 
 // rows × weeks render matrix, computed once.
@@ -167,6 +168,7 @@ const matrix = computed<Cell[][]>(() =>
         isStart: inBar && w === row.startWeek,
         glyph: m ? GLYPH[m] : "",
         glyphCls: m ? MARKER_CLASS[m] : "",
+        slipForecast: m === "forecast" && w === row.forecastWeek,
       }
     }),
   ),
@@ -362,7 +364,11 @@ const bandStyle = computed(() => ({
             :class="[cell.line, TONE_TEXT[tone(row)], { dashed: cell.dashed }]"
           ></i>
           <i v-if="cell.isStart" class="riser" :class="TONE_TEXT[tone(row)]"></i>
-          <span v-if="cell.glyph" class="glyph" :class="cell.glyphCls">{{ cell.glyph }}</span>
+          <span v-if="cell.slipForecast" class="glyph" :class="cell.glyphCls"
+            ><svg class="tri-dash" viewBox="0 0 12 12" role="img" aria-label="forecast slip">
+              <path d="M6 1.6 L11 10.4 H1 Z" /></svg
+          ></span>
+          <span v-else-if="cell.glyph" class="glyph" :class="cell.glyphCls">{{ cell.glyph }}</span>
         </div>
         <div class="learncell">
           <template v-if="row.delivered">
@@ -429,7 +435,13 @@ const bandStyle = computed(() => ({
     <span><b class="text-ink-warning">△</b> re-estimate</span>
     <span><b class="text-ink-success">◉</b> on time</span>
     <span><b class="text-ink-error">▲</b> late</span>
-    <span><b class="text-base-content/50">◌</b><b class="dash-swatch"></b> forecast</span>
+    <span
+      ><b class="text-base-content/50"
+        ><svg class="tri-dash" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M6 1.6 L11 10.4 H1 Z" /></svg></b
+      ><b class="dash-swatch"></b> forecast slip</span
+    >
+    <span><b class="text-base-content/50">◌</b> forecast, earlier</span>
     <span><b>┣━</b> feature bar</span>
     <span><b class="ms-dia">◆</b> milestone</span>
     <span><b class="now-swatch"></b> today</span>
@@ -735,6 +747,18 @@ const bandStyle = computed(() => ({
   /* halo so the bar reads as passing behind, not through, the symbol */
   background: var(--cell-bg);
   border-radius: 0.3rem;
+}
+/* No Unicode glyph for a dashed △: draw it, sized to sit with the text glyphs. */
+.tri-dash {
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  vertical-align: -0.1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-dasharray: 2.2 1.5;
+  stroke-linejoin: round;
 }
 
 /* Chip in its own column, text beside it. Baseline alignment pins the chip to

@@ -252,15 +252,16 @@ a part of the format as the fields:
      the `◯` (no separate original marker is drawn).
    - `▲` **delivered late** — a delivery after `original`; the `◯` baseline is
      **kept** alongside it.
-   - `◌` **forecast** — computed (rule 9), never earlier than the current week.
-     Drawn while undelivered, and only when it differs from the latest
-     estimate. A top-level feature's forecast is its latest estimate, or the
+   - dashed `△` / `◌` **forecast** — computed (rule 9), never earlier than the
+     current week. Drawn while undelivered, and only when it differs from the
+     latest estimate: a dashed `△` when it lands later (a slip nobody has
+     recorded yet), `◌` when it lands earlier. A top-level feature's forecast is its latest estimate, or the
      current week once overdue.
 3. **Bar extent.** A feature's bar runs from `start` to its furthest marker. A
    delivered bar ends at its delivery. An **overdue** feature (undelivered, and
    already past its furthest estimate relative to "now") keeps running to the
    current week. When a Forecast lands after the latest estimate, the bar runs
-   **dashed** from the latest estimate to the `◌`.
+   **dashed** from the latest estimate to the dashed `△`.
 4. **Area banding.** Features are grouped into contiguous bands, one per Area.
    Bands appear in order of **first appearance** of the Area in the file;
    within a band, features keep their authored order. A top-level feature's

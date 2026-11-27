@@ -84,7 +84,8 @@ _Avoid_: schema version, file version, app version
 - `◉` delivered on time (on/before Original Estimate)
 - `△` Re-estimate (a slip to a later week)
 - `▲` delivered late (after Original Estimate)
-- `◌` Forecast (computed, drawn muted), shown only when it differs from the latest estimate
+- dashed `△` Forecast later than the latest estimate (computed, drawn muted): a slip nobody has recorded yet
+- `◌` Forecast earlier than the latest estimate (computed, drawn muted)
 - `▨` a **Break** week (hatched column)
 - `┄` the stretch of a bar from the latest estimate to the Forecast
 - `→` reads Problem → Countermeasure; hidden when there is no Countermeasure
