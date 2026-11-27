@@ -9,7 +9,7 @@ A week-by-week plan that keeps the receipts on the **Features** we promised: whe
 _Avoid_: Gantt, roadmap, timeline
 
 **Feature**:
-A unit of delivery with a start week, an **Original Estimate**, optional **Re-estimates**, and (eventually) a **Delivery**. A Feature may be broken down into child Features, which may themselves have children. A Feature with children is a **parent**: its dates are never authored, only derived from its children. It still carries its own **Status** and **Learning**, because those are judgements. Shown as one collapsible row whose children unfold beneath it.
+A unit of delivery with a start week, an **Original Estimate**, optional **Re-estimates**, and (eventually) a **Delivery**. A Feature may be broken down into child Features, which may themselves have children. A Feature with children is a **parent**: its dates are never authored, only derived from its children. It still carries its own **Status**, **Problem**, **Countermeasure** and **Learning**, because those are judgements. Shown as one collapsible row whose children unfold beneath it.
 _Avoid_: task, ticket, story, epic, sub-feature, step
 
 **Duration**:
@@ -41,8 +41,16 @@ A free-text takeaway captured against a Feature once it is delivered — what th
 _Avoid_: retro note, lesson, postmortem
 
 **Status**:
-A Feature's _current_ delivery confidence (a snapshot, overwritten each review): **on-track** (all good), **at-risk** (in trouble but we have a plan), **off-track** (in trouble and we have no plan). May carry a comment. Applies only while in-flight; once delivered, the **Learning** takes over and the Status is dropped. Any Feature at any depth may carry its own Status, and nothing rolls up: a parent shows only the Status authored on it, and its children's trouble reaches it through its **Forecast**. An overdue Feature (past its latest estimate, not delivered) is expressed through an at-risk/off-track Status, not a dedicated symbol.
+A Feature's _current_ delivery confidence (a snapshot, overwritten each review): **on-track** (all good), **at-risk** (in trouble, with a **Countermeasure**), **off-track** (in trouble, with no Countermeasure). It carries no free comment: the only texts an in-flight Feature holds are its **Problem** and its Countermeasure, each with one meaning. Applies only while in-flight; once delivered, the **Learning** takes over and the Status is dropped. Any Feature at any depth may carry its own Status, and nothing rolls up: a parent shows only the Status authored on it, and its children's trouble reaches it through its **Forecast**. An overdue Feature (past its latest estimate, not delivered) is expressed through an at-risk/off-track Status, not a dedicated symbol.
 _Avoid_: health, RAG, risk
+
+**Problem**:
+Why a Feature is in trouble, stated as fact rather than remedy. Like the **Status** it belongs to, it is a snapshot that is replaced at each review and dropped once the Feature is delivered.
+_Avoid_: note, comment, issue, blocker, cause, risk
+
+**Countermeasure**:
+The stated action that answers a Feature's **Problem** and brings it back on track. It is what separates **at-risk** from **off-track**. Like the **Status** it belongs to, it is a snapshot: it is replaced at each review and dropped once the Feature is delivered.
+_Avoid_: plan (that word is the **Macroplan**'s), recovery, mitigation, next step, fix
 
 **Area**:
 A named group of **Features** that share a discipline or owner (e.g. Change management, Communication, Training). A Feature belongs to at most one Area; Areas partition the plan into labelled row bands, ordered by first appearance. Two spellings that differ only in case or surrounding space name the same Area, labelled by the first spelling used. Pure arrangement — an Area carries no dates, no status of its own, and no rolled-up health: whether it is in trouble is read off its Features. Features with no Area render first, in an unlabelled band.
@@ -65,7 +73,7 @@ The collection of saved **Macroplans** held in the browser's localStorage — th
 _Avoid_: workspace, project, file list
 
 **Format version**:
-Which revision of the portable Macroplan `.toml` format a file targets, declared by an optional top-level `macroplan_version` (currently `2`; a Macroplan with no child Features is still a version `1` file). Absent means the current version; a newer version is rejected rather than silently mis-rendered. The format — its fields and render semantics — is defined in [docs/format.md](docs/format.md) so a Macroplan can be produced or consumed outside this app.
+Which revision of the portable Macroplan `.toml` format a file targets, declared by an optional top-level `macroplan_version` (currently `3`; a Macroplan with no **Problem** or **Countermeasure** is still a version `2` file, and one that also has no child Features a version `1` file). Absent means the current version; a newer version is rejected rather than silently mis-rendered. The format — its fields and render semantics — is defined in [docs/format.md](docs/format.md) so a Macroplan can be produced or consumed outside this app.
 _Avoid_: schema version, file version, app version
 
 ## Symbols
@@ -79,6 +87,7 @@ _Avoid_: schema version, file version, app version
 - `◌` Forecast (computed, drawn muted), shown only when it differs from the latest estimate
 - `▨` a **Break** week (hatched column)
 - `┄` the stretch of a bar from the latest estimate to the Forecast
+- `→` reads Problem → Countermeasure; left dangling when there is no Countermeasure
 
 ## Relationships
 
@@ -86,6 +95,7 @@ _Avoid_: schema version, file version, app version
 - The **Library** holds many **Macroplans**, exactly one of which is active (shown in the editor and grid). Each is identified internally by a stable id and labelled by its **title**.
 - A **Feature** has zero or more child **Features**, in a fixed order where each depends on the one before (it cannot start until its predecessor ends). The order is a plan, not a law: a child delivered before its predecessor is still recorded as it happened, and flagged rather than refused. Nesting may go to any depth. A parent's start is its first child's start, its **Original Estimate** is its last child's Original Estimate, and it is delivered once every child is, in the Week the last of them lands.
 - A **Feature** has exactly one **Original Estimate**, zero or more **Re-estimates**, at most one **Delivery**, and at most one **Learning**.
+- While in-flight, a **Feature** has at most one **Status**, at most one **Problem** and at most one **Countermeasure**. An on-track Feature carries neither text. An at-risk Feature always has a Countermeasure and may state its Problem. An off-track Feature never has a Countermeasure and may state its Problem. Once delivered, all three are dropped and the **Learning** takes over.
 - A top-level **Feature** belongs to at most one **Area**; child Features sit in their parent's Area and never name one of their own. Feature names stay unique across the whole Macroplan, at every depth: neither an Area nor a parent scopes them, so a **Milestone** can keep naming Features across Areas and at any depth.
 - A **Milestone** explicitly names the **Features** required by it, at any depth (requiring a parent means requiring its derived Delivery: every child delivered); a Feature may be required by zero, one, or several Milestones, and a Feature may be in the plan without belonging to any Milestone.
 - On-time vs. late is judged against the **Original Estimate**, never a **Re-estimate**.
