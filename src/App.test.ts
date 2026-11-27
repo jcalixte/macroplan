@@ -177,3 +177,40 @@ describe("App — keyboard layer", () => {
     expect(palette.props("open")).toBe(true)
   })
 })
+
+describe("App — on a phone", () => {
+  let restore: typeof window.matchMedia
+  beforeEach(() => {
+    restore = window.matchMedia
+    window.matchMedia = ((q: string) => ({
+      matches: q.includes("max-width"),
+      media: q,
+      addEventListener() {},
+      removeEventListener() {},
+    })) as unknown as typeof window.matchMedia
+  })
+  afterEach(() => {
+    window.matchMedia = restore
+    history.replaceState(null, "", "/")
+  })
+
+  it("opens on the Macroplan alone, with no source pane", () => {
+    const w = mountApp()
+    expect(w.findComponent({ name: "MacroplanGrid" }).exists()).toBe(true)
+    expect(w.findComponent({ name: "PlanEditor" }).exists()).toBe(false)
+  })
+
+  it("toggles to the source and back from one header button", async () => {
+    const w = mountApp()
+    const toggle = () => w.find("header button.md\\:hidden")
+    expect(toggle().text()).toBe("Source")
+    await toggle().trigger("click")
+    expect(w.findComponent({ name: "PlanEditor" }).exists()).toBe(true)
+    expect(w.findComponent({ name: "MacroplanGrid" }).exists()).toBe(false)
+    expect(toggle().text()).toBe("Plan")
+  })
+
+  it("draws the grid compact", () => {
+    expect(mountApp().findComponent({ name: "MacroplanGrid" }).props("compact")).toBe(true)
+  })
+})
