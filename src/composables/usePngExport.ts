@@ -11,6 +11,12 @@ export function slugify(title: string): string {
     .replace(/^-+|-+$/g, "")
 }
 
+/** Whether this browser can share an image file, as phones do. */
+export function canShareFiles(): boolean {
+  if (typeof navigator === "undefined" || !navigator.canShare) return false
+  return navigator.canShare({ files: [new File([], "x.png", { type: "image/png" })] })
+}
+
 /** Slugified, stable download name derived from the plan title. */
 export function exportFilename(title: string): string {
   return `macroplan-${slugify(title) || "plan"}.png`
@@ -100,5 +106,24 @@ export function usePngExport() {
     }
   }
 
-  return { busy, toast, holdToast, releaseToast, copyPng, downloadPng }
+  /** Hand the PNG to the system share sheet (Slack, Messages, Mail…) — on a
+   *  phone that is where a plan goes, and the clipboard rarely takes images. */
+  async function sharePng(el: HTMLElement | null | undefined, filename: string, title: string) {
+    if (!el || busy.value) return
+    busy.value = true
+    try {
+      const blob = await render(el)
+      const file = new File([blob], filename, { type: "image/png" })
+      await navigator.share({ files: [file], title })
+    } catch (e) {
+      // Dismissing the sheet is a choice, not a failure.
+      if (!(e instanceof DOMException && e.name === "AbortError")) {
+        flash("err", "Couldn’t share — use Download instead")
+      }
+    } finally {
+      busy.value = false
+    }
+  }
+
+  return { busy, toast, holdToast, releaseToast, copyPng, downloadPng, sharePng }
 }
