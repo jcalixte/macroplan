@@ -320,7 +320,7 @@ const bandStyle = computed(() => ({
             :aria-label="`${expanded.has(row.name) ? 'Fold' : 'Unfold'} ${row.name}`"
             @click="emit('toggle', row.name)"
           >
-            {{ expanded.has(row.name) ? "▾" : "▸" }}
+            <span class="chevron" aria-hidden="true">▸</span>
           </button>
           <span class="truncate" :title="row.name">{{ row.name }}</span>
           <span v-if="row.childCount" class="childcount">({{ row.childCount }})</span>
@@ -618,6 +618,15 @@ const bandStyle = computed(() => ({
 .disclosure:hover {
   color: var(--color-primary);
 }
+/* One glyph that turns, so fold and unfold read as the same control changing
+   state. */
+.chevron {
+  display: inline-block;
+  transition: rotate var(--dur-fast) var(--ease-in-out);
+}
+.disclosure[aria-expanded="true"] .chevron {
+  rotate: 90deg;
+}
 .disclosure:focus-visible {
   outline: 2px solid var(--color-primary);
   border-radius: 0.2rem;
@@ -851,19 +860,35 @@ const bandStyle = computed(() => ({
 .cellpop .muted {
   color: var(--color-ink-muted);
 }
-@media (prefers-reduced-motion: no-preference) {
-  .cellpop {
-    transition:
-      opacity 150ms ease-out,
-      display 150ms allow-discrete,
-      overlay 150ms allow-discrete;
-  }
-  .cellpop:not(:popover-open) {
+/* Fades in from 98% scale; closes faster. Scale rather than a slide because
+   the popover may flip above or beside its text, so no direction holds.
+   Reduced motion keeps the fade only. */
+.cellpop {
+  transition-property: opacity, scale, display, overlay;
+  transition-duration: var(--dur-exit-fast);
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+.cellpop:popover-open {
+  transition-duration: var(--dur-fast);
+}
+.cellpop:not(:popover-open) {
+  opacity: 0;
+  scale: 0.98;
+}
+@starting-style {
+  .cellpop:popover-open {
     opacity: 0;
+    scale: 0.98;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cellpop:not(:popover-open) {
+    scale: none;
   }
   @starting-style {
     .cellpop:popover-open {
-      opacity: 0;
+      scale: none;
     }
   }
 }
