@@ -317,9 +317,6 @@ function validateNesting(features: readonly RawFeature[], version: number | unde
         if (isAnchor && f.start == null) {
           fail(`missing \`start\` — the first Feature of the chain under "${root}" anchors it`)
         }
-        if (!isAnchor && f.start != null) {
-          fail(`only the first Feature of the chain under "${root}" sets \`start\` — remove it`)
-        }
         let previous = f.weeks!
         for (const w of f.reestimateWeeks) {
           if (w <= previous) {

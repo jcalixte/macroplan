@@ -507,9 +507,9 @@ Basement rows (top→bottom): **target · difficulty (1–5) · absolute weight 
 - **N7** Break a Feature into a chain of dependent pieces and see how each piece's slip moves the whole _W:7_
   - **F9** Derive a parent Feature from its children _Dir→ 100% correct at any depth_
     - **How**: recursive Features — a child is a Feature, so Milestones, Areas and ADR-0001 apply unchanged at every depth. Chosen over a separate grouping concept (an "Initiative" above Features) and over a single flat level of "Steps". See T8.
-    - **How**: a parent's dates are fully derived (start = first child's start, Original Estimate = last child's, Delivery = once every child is delivered, in the week the last lands), and authoring one is a parse error. Chosen over an authored top-down promise that the children may contradict. See T9.
+    - **How**: a parent's dates are fully derived (start = earliest child's start, Original Estimate = latest child's, Delivery = once every child is delivered, in the week the last lands), and authoring one is a parse error. Chosen over an authored top-down promise that the children may contradict. See T9.
       - **Component**: C2 — `buildPlan` resolves `parent` links into a tree, derives bottom-up, and classifies the parent with the same ADR-0001 comparison as a leaf
-    - **How**: children author a **Duration** (`weeks`), anchored once per top-level tree on its first leaf; the planned chain is computed once and never moves. Chosen over authoring every child's dates (lengthening one child means editing every later one). See T10.
+    - **How**: children author a **Duration** (`weeks`), anchored per top-level tree on its first leaf; a later leaf may author its own `start` to unlink from its predecessor (parallel work, or a deliberate gap); the planned chain is computed once and never moves. Chosen over authoring every child's dates (lengthening one child means editing every later one). See T10.
       - **Component**: C1 — `parent`, `weeks`, `reestimate_weeks` keys; version 2
     - **How**: a flat `parent = "<name>"` key on an ordinary `[[feature]]` block; siblings chain in file order. See T12 / [ADR-0004](docs/adr/0004-nesting-by-parent-name.md).
   - **F10** Carry each child's slip along the chain and up to its parent as a Forecast _Dir→ 100% correct, both directions_

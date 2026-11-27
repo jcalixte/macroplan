@@ -89,7 +89,8 @@ interface Place {
  * One top-level Feature and its subtree, as rows in pre-order (F9, F10).
  *
  * A top-level leaf is authored with dates. A tree is authored with Durations,
- * anchored once on its first leaf, and derived twice:
+ * anchored on its first leaf, and derived twice. A later leaf with its own
+ * `start` is unlinked: the chain restarts from it.
  *  - the planned chain fixes every Feature's Original Estimate from the anchor
  *    and the planned `weeks`; it never moves (ADR-0001 at every link);
  *  - the real chain starts each leaf the Week after the latest week any earlier
@@ -134,17 +135,21 @@ function buildTree(
   }
   const anchor = mondayOf(firstLeaf(root).start!)
 
-  // Planned chain: each Feature's Original Estimate, from Durations alone.
+  // Planned chain: each Feature's Original Estimate, from Durations alone. A
+  // leaf with its own `start` is unlinked from its predecessor and re-anchors it.
   const plannedEnd = new Map<string, WeekId>()
-  const plan = (f: RawFeature, start: WeekId): WeekId => {
+  const plan = (f: RawFeature, after: WeekId): WeekId => {
     const kids = kidsOf(f)
+    const start = !kids.length && f.start != null ? mondayOf(f.start) : after
     let end = addWeeks(start, (f.weeks ?? 1) - 1)
     if (kids.length) {
       let next = start
+      const ends: WeekId[] = []
       for (const k of kids) {
-        end = plan(k, next)
-        next = addWeeks(end, 1)
+        ends.push(plan(k, next))
+        next = addWeeks(ends.at(-1)!, 1)
       }
+      end = ends.reduce(latest) // an unlinked child may end before its predecessor
     }
     plannedEnd.set(f.name, end)
     return end
@@ -165,7 +170,14 @@ function buildTree(
     const place: Place = { depth, parent: f.parent, childCount: kids.length, area }
 
     if (!kids.length) {
-      const startWeek = chainEnd == null ? anchor : addWeeks(chainEnd, 1)
+      if (f.start != null) {
+        // Unlinked: nothing before it in the chain pushes it or puts it out of order.
+        chainEnd = undefined
+        earlierOpen = false
+        earlierDelivered = undefined
+      }
+      const startWeek =
+        f.start != null ? mondayOf(f.start) : chainEnd == null ? anchor : addWeeks(chainEnd, 1)
       const deliveredWeek = f.delivered ? mondayOf(f.delivered) : undefined
       const duration = f.reestimateWeeks.at(-1) ?? f.weeks!
       // An open leaf can't land in the past: once overdue, it lands this week at the earliest.

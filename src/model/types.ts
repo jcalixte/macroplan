@@ -9,7 +9,8 @@ export type StatusLevel = "on-track" | "at-risk" | "off-track"
 // the positional rules:
 //   top-level leaf → start + original (+ reestimates)
 //   child leaf     → weeks (+ reestimate_weeks); the first leaf under a
-//                    top-level parent also carries `start`, the chain's anchor
+//                    top-level parent also carries `start`, the chain's anchor,
+//                    and a later leaf may carry one to unlink from its predecessor
 //   parent         → no dates at all — they are derived from its children
 export interface RawFeature {
   name: string

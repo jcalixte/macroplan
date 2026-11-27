@@ -64,7 +64,7 @@
           "minLength": 1
         },
         "start": {
-          "description": "The week work began. On a top-level Feature without children: required. In a chain: only on its first leaf, where it anchors the whole chain.",
+          "description": "The week work began. On a top-level Feature without children: required. In a chain: required on its first leaf, where it anchors the chain; on a later leaf, it unlinks that leaf from its predecessor and the chain carries on from it.",
           "$ref": "#/$defs/date"
         },
         "original": {

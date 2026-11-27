@@ -71,7 +71,7 @@ promised, every slip, and when it shipped.
 | Key                | Required              | Type                                         | Default | Meaning                                                                                                                                    |
 | ------------------ | --------------------- | -------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `name`             | **yes**               | non-empty string                             | —       | Identifies the feature; the **join key** for a milestone's `requires`.                                                                     |
-| `start`            | see _Nested Features_ | date                                         | —       | The week work began. In a chain, only its first leaf carries it.                                                                           |
+| `start`            | see _Nested Features_ | date                                         | —       | The week work began. In a chain, required on its first leaf; on a later leaf it unlinks it from its predecessor.                           |
 | `original`         | see _Nested Features_ | date                                         | —       | The **Original Estimate** — the immovable baseline all lateness is judged against ([ADR-0001](adr/0001-original-estimate-as-baseline.md)). |
 | `reestimates`      | no                    | array of dates                               | `[]`    | Each later week the estimate slipped to (a slip, `△`). Order-independent.                                                                  |
 | `parent`           | no                    | non-empty string                             | —       | The `name` of the parent Feature; makes this Feature a child (v2). Absent → top-level.                                                     |
@@ -199,12 +199,17 @@ one before it ends. Which keys a Feature may carry depends on where it sits:
 | ---------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | Top-level, no children                   | `start`, `original` (required), `reestimates`, `delivered`             | `weeks`, `reestimate_weeks`                                                                |
 | Parent (has children), at any depth      | `status`, `problem`, `countermeasure`, `learning`; `area` if top-level | `start`, `original`, `reestimates`, `delivered`, `weeks`, `reestimate_weeks` — all derived |
-| Child without children                   | `weeks` (required), `reestimate_weeks`, `delivered`                    | `original`, `reestimates`, `area`                                                          |
+| Child without children                   | `weeks` (required), `reestimate_weeks`, `delivered`; `start` to unlink | `original`, `reestimates`, `area`                                                          |
 | First leaf of a top-level parent's chain | as a child, plus `start` (required) — the anchor of the chain          | —                                                                                          |
 
-- **Exactly one `start` per tree**: on its first leaf in reading order. Every
-  other date in the tree follows from the Durations, so a deliberate gap
-  can't be confused with a typo.
+- **`start` anchors a tree on its first leaf** in reading order. Every other
+  date in the tree follows from the Durations.
+- **A later leaf may set its own `start` to unlink it** from its predecessor:
+  it starts that week whatever its predecessor does, even overlapping it or
+  after a gap, and the chain carries on from it. Its predecessor's slips no
+  longer reach it, and delivering before its predecessor is not out of order.
+  Only a leaf carries `start`: to unlink a nested parent, set it on that
+  parent's first leaf.
 - **`reestimate_weeks` only grows.** Each value is longer than `weeks` and the
   value before it — a Re-estimate is always a slip.
 - **`parent` resolves by name**, like `requires`; names stay unique at every
@@ -286,10 +291,12 @@ a part of the format as the fields:
 9. **Chains (v2).** Within a top-level tree, two chains are derived from the
    anchor `start`, walking the leaves in reading order:
    - **Planned** — each leaf runs for `weeks` from the week after its
-     predecessor's Original Estimate; the last week is its **Original
-     Estimate**. Computed from the file alone, it never moves.
-   - **Real** — each leaf starts the week after the **latest** week any earlier
-     leaf occupies: its delivery, or its forecast while undelivered. Its
+     predecessor's Original Estimate (or from its own `start`); the last week
+     is its **Original Estimate**. Computed from the file alone, it never
+     moves.
+   - **Real** — a leaf with its own `start` starts that week, and the leaves
+     before it no longer count for the rest of the chain. Every other leaf
+     starts the week after the **latest** week any earlier leaf occupies: its delivery, or its forecast while undelivered. Its
      **forecast** is that start plus its latest Duration (the last
      `reestimate_weeks` value, else `weeks`), minus one week, and never
      earlier than the current week while undelivered: an overdue leaf pushes
@@ -297,10 +304,11 @@ a part of the format as the fields:
      `reestimate_weeks` value draws a `△` at the real start plus that Duration.
      An early delivery pulls later leaves earlier, just as a late one pushes
      them back.
-   - A leaf delivered while an earlier leaf in its chain is undelivered, or
-     delivered later, is **out of order**: drawn as recorded, and flagged.
+   - A leaf delivered while an earlier leaf in its chain (since the last
+     `start`) is undelivered, or delivered later, is **out of order**: drawn
+     as recorded, and flagged.
 10. **Parents (v2).** A parent's start is its earliest child's start, its
-    Original Estimate is its last child's, and its forecast is the latest of its
+    Original Estimate is the latest of its children's, and its forecast is the latest of its
     children's. It is delivered once **every** child is, in the week the last of
     them was delivered, and is judged on-time/late against its own derived
     Original Estimate (rule 1). A parent never draws `△`. A milestone may require

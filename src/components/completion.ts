@@ -31,7 +31,7 @@ const PLAN_KEYS: Completion[] = [
 
 const FEATURE_KEYS: Completion[] = [
   { label: "name", insert: "name = ", detail: "required" },
-  { label: "start", insert: "start = ", detail: "date — on a chain, its first child only" },
+  { label: "start", insert: "start = ", detail: "date — a chain's first child, or one to unlink" },
   { label: "original", insert: "original = ", detail: "Original Estimate — date, top-level" },
   { label: "reestimates", insert: "reestimates = ", detail: "list of dates" },
   { label: "delivered", insert: "delivered = ", detail: "date" },

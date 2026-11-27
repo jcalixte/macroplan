@@ -260,6 +260,58 @@ describe("troubleBelow — a parent's descendants in trouble", () => {
   })
 })
 
+describe("an unlinked child authors its own `start`", () => {
+  // Payments → Vendor contract (2 weeks, 06-01) → Integration (3 weeks, its own start) → Rollout (1 week).
+  const unlinked = (vendor = "", integration = "") =>
+    payments(vendor, `start = 2026-06-08\n${integration}`) +
+    `[[feature]]\nname = "Rollout"\nparent = "Payments"\nweeks = 1\n`
+
+  it("starts where it says, even overlapping its predecessor", () => {
+    const plan = onPlan(unlinked())
+    expect(row(plan, "Integration").startWeek).toBe("2026-06-08")
+    expect(marks(row(plan, "Integration"))).toEqual(["original@2026-06-22"])
+  })
+
+  it("re-anchors the chain: the next child follows it, not its predecessor", () => {
+    const plan = onPlan(unlinked())
+    expect(row(plan, "Rollout").startWeek).toBe("2026-06-29")
+    expect(marks(row(plan, "Rollout"))).toEqual(["original@2026-06-29"])
+  })
+
+  it("is not pushed by its predecessor's slip", () => {
+    const plan = onPlan(unlinked("reestimate_weeks = [6]"))
+    expect(row(plan, "Vendor contract").markers.some((m) => m.kind === "reestimate")).toBe(true)
+    expect(row(plan, "Integration").startWeek).toBe("2026-06-08")
+    expect(row(plan, "Integration").markers.some((m) => m.kind === "forecast")).toBe(false)
+  })
+
+  it("is not out of order when delivered before its predecessor", () => {
+    const plan = build(unlinked("", "delivered = 2026-06-15"))
+    expect(row(plan, "Integration").outOfOrder).toBe(false)
+  })
+
+  it("gives the parent the latest child Original Estimate, whichever comes last", () => {
+    const plan = onPlan(
+      payments("reestimate_weeks = [6]", "start = 2026-05-25\nweeks = 1").replace(
+        "weeks = 3\n",
+        "",
+      ),
+    )
+    expect(marks(row(plan, "Payments"))).toContain("original@2026-06-08")
+  })
+
+  it("may unlink a subtree from its first leaf", () => {
+    const plan = onPlan(
+      `[[feature]]\nname = "P"\n` +
+        `[[feature]]\nname = "A"\nparent = "P"\nstart = 2026-06-01\nweeks = 4\n` +
+        `[[feature]]\nname = "Q"\nparent = "P"\n` +
+        `[[feature]]\nname = "B"\nparent = "Q"\nstart = 2026-06-08\nweeks = 1\n`,
+    )
+    expect(row(plan, "Q").startWeek).toBe("2026-06-08")
+    expect(marks(row(plan, "P"))).toEqual(["original@2026-06-22"])
+  })
+})
+
 describe("F12 — malformed nesting is rejected with a message naming the fix", () => {
   const top = `[[feature]]\nname = "P"\n`
   const kid = (name: string, extra: string) =>
@@ -301,8 +353,13 @@ describe("F12 — malformed nesting is rejected with a message naming the fix", 
   it("a child without `weeks`", () =>
     rejects(top + kid("A", "start = 2026-06-01"), /missing `weeks`/))
   it("an anchor without `start`", () => rejects(top + kid("A", "weeks = 2"), /anchors it/))
-  it("`start` on a later child", () =>
-    rejects(top + anchor + kid("B", "start = 2026-06-15\nweeks = 1"), /only the first Feature/))
+  it("`start` on a parent below the root", () =>
+    rejects(
+      top +
+        kid("Q", "start = 2026-06-15") +
+        `[[feature]]\nname = "A"\nparent = "Q"\nstart = 2026-06-01\nweeks = 2\n`,
+      /`start` is derived/,
+    ))
   it("`area` on a child", () =>
     rejects(top + kid("A", 'start = 2026-06-01\nweeks = 1\narea = "X"'), /parent's Area/))
   it("weeks below one", () =>
