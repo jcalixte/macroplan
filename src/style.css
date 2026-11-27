@@ -4,12 +4,16 @@
 @plugin "daisyui/theme" {
   name: "light";
   default: true;
+  /* A custom theme block defaults color-scheme to normal, over DaisyUI's own:
+     state it, or scrollbars, form controls and light-dark() stay light. */
+  color-scheme: light;
   --color-primary: #006266; /* 7.15:1 on base-100 */
   --color-primary-content: #ffffff;
 }
 @plugin "daisyui/theme" {
   name: "dark";
   prefersdark: true;
+  color-scheme: dark;
   --color-primary: #4fb3b8; /* 6.39:1 on dark base-100 */
   --color-primary-content: #0d1117;
 }
