@@ -49,11 +49,11 @@ const TONE_BORDER: Record<Tone, string> = {
   error: "border-ink-error",
   neutral: "border-primary",
 }
-const TONE_DOT: Record<Tone, string> = {
-  success: "bg-ink-success",
-  warning: "bg-ink-warning",
-  error: "bg-ink-error",
-  neutral: "bg-base-content/40",
+const TONE_CHIP: Record<Tone, string> = {
+  success: "text-ink-success",
+  warning: "text-ink-warning",
+  error: "text-ink-error",
+  neutral: "text-ink-muted",
 }
 
 // Layout constants (must match the CSS vars --name-w / --wk / --area-w) for
@@ -88,6 +88,16 @@ function tone(row: FeatureRow): Tone {
 
 function statusWord(row: FeatureRow): string {
   return row.status ? row.status.replace("-", " ") : "in flight"
+}
+
+// at-risk and off-track rows read `Problem → Countermeasure`; off-track never
+// has a Countermeasure, so its arrow is left dangling on purpose.
+function inTrouble(row: FeatureRow): boolean {
+  return row.status === "at-risk" || row.status === "off-track"
+}
+
+function troubleTitle(row: FeatureRow): string {
+  return `Problem: ${row.problem ?? "not stated"}\nCountermeasure: ${row.countermeasure ?? "none"}`
 }
 
 function markerAt(row: FeatureRow, w: WeekId): MarkerKind | null {
@@ -260,7 +270,7 @@ const bandStyle = computed(() => ({
         <span class="wklabel">{{ c.label }}</span>
         <span v-if="c.isNow" class="badge-now">now</span>
       </div>
-      <div class="hcell learnhead">Learning / Status</div>
+      <div class="hcell learnhead">Status / Learning</div>
 
       <!-- Area gutter: one cell per band, spanning its Features. Explicitly
            placed, so the auto-flowed feature rows below skip column 1. -->
@@ -317,14 +327,21 @@ const bandStyle = computed(() => ({
         </div>
         <div class="learncell">
           <template v-if="row.delivered">
-            <span v-if="row.learning" class="note">{{ row.learning }}</span>
+            <template v-if="row.learning">
+              <span class="chip" :class="TONE_CHIP[tone(row)]">learned</span>
+              <span class="celltext" :title="`Learning: ${row.learning}`">{{ row.learning }}</span>
+            </template>
             <span v-else class="muted">{{
               row.onTime ? "delivered on time" : "delivered late"
             }}</span>
           </template>
           <template v-else>
-            <span class="dot" :class="TONE_DOT[tone(row)]"></span>
-            <span class="note" :title="row.note || ''">{{ row.note || statusWord(row) }}</span>
+            <span class="chip" :class="TONE_CHIP[tone(row)]">{{ statusWord(row) }}</span>
+            <span v-if="inTrouble(row)" class="celltext" :title="troubleTitle(row)">
+              <span v-if="row.problem" class="problem">{{ row.problem }}</span>
+              <span class="arrow">→</span>
+              <span v-if="row.countermeasure" class="countermeasure">{{ row.countermeasure }}</span>
+            </span>
           </template>
         </div>
       </div>
@@ -342,6 +359,7 @@ const bandStyle = computed(() => ({
     <span><b class="ms-dia">◆</b> milestone</span>
     <span><b class="now-swatch"></b> today</span>
     <span v-if="plan.breaks.length"><b class="off-swatch"></b> break</span>
+    <span><i class="legend-problem">problem</i> <b>→</b> countermeasure</span>
   </div>
 </template>
 
@@ -470,7 +488,7 @@ const bandStyle = computed(() => ({
   z-index: 30;
 }
 
-/* Reading guide: a long plan puts 26 weeks between a name and its note, so the
+/* Reading guide: a long plan puts 26 weeks between a name and its Status or Learning, so the
    row under the pointer takes a faint brand tint, sticky name cell included. */
 .row {
   display: contents;
@@ -604,17 +622,30 @@ const bandStyle = computed(() => ({
 .learncell .muted {
   color: var(--color-ink-muted);
 }
-.learncell .note {
+.learncell .celltext {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  opacity: 0.8;
 }
-.dot {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 9999px;
+/* The chip names the kind of text that follows: a Status or a Learning. */
+.chip {
   flex: none;
+  padding: 0 0.35rem;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+/* Problem → Countermeasure: the fact is muted, the action carries the weight. */
+.celltext .arrow {
+  margin-inline: 0.3em;
+}
+.celltext .problem,
+.legend-problem {
+  color: var(--color-ink-muted);
+  font-style: normal;
 }
 
 /* "today" — a neutral grey column (red is reserved for problems) */

@@ -40,10 +40,38 @@ describe("MacroplanGrid renders the sample plan", () => {
     expect(w.text()).toContain("MVP go-live")
   })
 
-  it("shows a learning for a delivered feature and a status note for an in-flight one", () => {
-    const text = mountGrid().text()
-    expect(text).toContain("Vendor lead time") // Payments learning
-    expect(text).toContain("No recovery plan yet") // Dashboard status note
+  it("heads the trailing column Status / Learning", () => {
+    expect(mountGrid().find(".learnhead").text()).toBe("Status / Learning")
+  })
+
+  it("labels every trailing cell with a chip saying which kind of text follows", () => {
+    const cells = mountGrid().findAll(".learncell")
+    const chips = cells.map((c) => c.find(".chip").text())
+    // Auth, Payments delivered with a Learning; Dashboard, Search, Notifications in flight
+    expect(chips).toEqual(["learned", "learned", "off track", "at risk", "on track"])
+    expect(cells[1].text()).toContain("Vendor lead time")
+  })
+
+  it("reads Problem → Countermeasure on an at-risk Feature", () => {
+    const search = mountGrid().findAll(".learncell")[3]
+    expect(search.find(".problem").text()).toBe("Third-party search API is flaky.")
+    expect(search.find(".countermeasure").text()).toBe("Spike a fallback on the in-house index.")
+    expect(search.find(".celltext").attributes("title")).toBe(
+      "Problem: Third-party search API is flaky.\nCountermeasure: Spike a fallback on the in-house index.",
+    )
+  })
+
+  it("leaves the arrow dangling on an off-track Feature: no Countermeasure", () => {
+    const dashboard = mountGrid().findAll(".learncell")[2]
+    expect(dashboard.find(".problem").text()).toBe("No owner since the reorg.")
+    expect(dashboard.find(".arrow").exists()).toBe(true)
+    expect(dashboard.find(".countermeasure").exists()).toBe(false)
+    expect(dashboard.find(".celltext").attributes("title")).toContain("Countermeasure: none")
+  })
+
+  it("shows no text on an on-track Feature, only its chip", () => {
+    const notifications = mountGrid().findAll(".learncell")[4]
+    expect(notifications.text()).toBe("on track")
   })
 
   it("labels week columns", () => {

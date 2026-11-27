@@ -1,8 +1,8 @@
 // Default Macroplan shown on first load — exercises every state:
 // on-time delivery, late delivery with slips, in-flight (on-track/at-risk/off-track),
 // an overdue Feature, and a Milestone with unmet required Features.
-export const SAMPLE_PLAN = `# Macroplan format version — optional; current is 1. See docs/format.md.
-macroplan_version = 1
+export const SAMPLE_PLAN = `# Macroplan format version — optional; current is 3. See docs/format.md.
+macroplan_version = 3
 
 title = "Q3 — Checkout revamp"
 
@@ -13,7 +13,10 @@ start = 2026-05-25
 end = 2026-08-03
 
 # A Feature: start week, Original Estimate (the immovable baseline), then any
-# Re-estimates, an optional Delivery, and an optional Learning / Status.
+# Re-estimates, an optional Delivery, and a Learning once delivered.
+# While in flight, a Status: on-track carries no text, at-risk names its
+# \`countermeasure\` (and may state its \`problem\`), off-track has no
+# Countermeasure yet (and may state its \`problem\`).
 # Dates are TOML date literals; any day is snapped to that week's Monday.
 
 # \`area\` groups Features into labelled bands. Optional — omit it and the
@@ -42,7 +45,7 @@ area = "Product"
 start = 2026-06-01
 original = 2026-06-08           # already past 'now' and undelivered → overdue
 status = "off-track"
-note = "No recovery plan yet — needs an owner."
+problem = "No owner since the reorg."
 
 [[feature]]
 name = "Search"
@@ -51,7 +54,8 @@ start = 2026-06-08
 original = 2026-06-22
 reestimates = [2026-07-06]      # re-estimated once, still in flight → △
 status = "at-risk"
-note = "Third-party search API is flaky; spike a fallback."
+problem = "Third-party search API is flaky."
+countermeasure = "Spike a fallback on the in-house index."
 
 [[feature]]
 name = "Notifications"
