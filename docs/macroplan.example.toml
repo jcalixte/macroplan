@@ -3,8 +3,10 @@
 # Reference Macroplan — a conformance sample exercising every field and state.
 # The authoritative definition of this format is docs/format.md.
 
-# Format version. Optional; the current version is 1. Omitting it means "1".
-macroplan_version = 1
+# Format version. Optional; the current version is 2. Omitting it means "2".
+# Version 2 adds nested Features (`parent`, `weeks`, `reestimate_weeks`); a plan
+# that doesn't use them can declare 1 so v1-only tools still read it.
+macroplan_version = 2
 
 title = "Q3 — Checkout revamp"
 
@@ -69,6 +71,38 @@ start = 2026-06-22
 original = 2026-07-06
 status = "on-track"
 
+# Nested Features (v2): a parent carries no dates — they are derived from its
+# children, which chain in file order. Children plan in `weeks`; only the first
+# leaf of the chain sets `start`, the anchor. Planned: Vendor contract 06-01…06-08
+# (◯ 06-08), Integration 06-15…06-29 (◯ 06-29). Vendor contract landed a week
+# late, so Integration can't start before 06-22: its Forecast ◌ is 07-06, drawn
+# after its unmoved ◯, and Checkout flow inherits the same Forecast.
+[[feature]]
+name = "Checkout flow"
+area = "Product"
+status = "at-risk"
+note = "Vendor slip is eating the buffer."
+
+[[feature]]
+name = "Vendor contract"
+parent = "Checkout flow"
+start = 2026-06-01
+weeks = 2
+delivered = 2026-06-15
+
+[[feature]]
+name = "Integration"
+parent = "Checkout flow"
+weeks = 3
+
+# A re-estimate on a child revises its Duration: `△` lands at its real start
+# plus 3 weeks, and moves with the chain.
+[[feature]]
+name = "Rollout"
+parent = "Checkout flow"
+weeks = 2
+reestimate_weeks = [3]
+
 # Milestones tie a due week to the features that must ship by then.
 [[milestone]]
 name = "Code freeze"
@@ -80,8 +114,9 @@ name = "MVP go-live"
 week = 2026-07-06
 requires = ["Auth", "Payments", "Dashboard"]
 
-# A milestone with no requirements is valid too.
+# A milestone may require a Feature at any depth — requiring a parent is met
+# once every one of its children has been delivered.
 [[milestone]]
 name = "Beta launch"
 week = 2026-07-13
-requires = ["Search", "Notifications"]
+requires = ["Search", "Notifications", "Checkout flow"]

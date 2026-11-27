@@ -4,11 +4,21 @@ export type StatusLevel = "on-track" | "at-risk" | "off-track"
 
 // ── Raw model: as authored, after TOML parse + validation, before derivation ──
 
+// Which keys a block may carry depends on where it sits in the tree, so the
+// date/Duration keys are optional here; `validateNesting` (parse.ts) enforces
+// the positional rules:
+//   top-level leaf → start + original (+ reestimates)
+//   child leaf     → weeks (+ reestimate_weeks); the first leaf under a
+//                    top-level parent also carries `start`, the chain's anchor
+//   parent         → no dates at all — they are derived from its children
 export interface RawFeature {
   name: string
-  start: string // yyyy-mm-dd
-  original: string // yyyy-mm-dd — the Original Estimate
+  start?: string // yyyy-mm-dd
+  original?: string // yyyy-mm-dd — the Original Estimate
   reestimates: string[] // yyyy-mm-dd[]
+  parent?: string // name of the parent Feature; absent → top-level
+  weeks?: number // a child's planned Duration, in Weeks (≥ 1)
+  reestimateWeeks: number[] // a child's re-estimated Durations, each longer than the last
   delivered?: string // yyyy-mm-dd
   learning?: string
   status?: StatusLevel
@@ -37,6 +47,7 @@ export type MarkerKind =
   | "reestimate" // △ a slip to a later week
   | "delivered-on-time" // ◉ delivered on/before the Original Estimate
   | "delivered-late" // ▲ delivered after the Original Estimate
+  | "forecast" // ◌ computed: where a slip (or early Delivery) up the chain now puts this Feature
 
 export interface Marker {
   week: WeekId
@@ -54,7 +65,15 @@ export interface FeatureRow {
   note?: string
   learning?: string
   slipCount: number // number of Re-estimates
-  area?: string // as authored — the first spelling seen for this Area
+  area?: string // as authored on the top-level Feature — children inherit their root's
+  depth: number // 0 for a top-level Feature, 1 for its children, …
+  parent?: string // the parent Feature's name; absent → top-level
+  childCount: number // > 0 makes this a parent row, foldable in the grid
+  /** The Forecast, when it lands after the latest estimate: the bar runs
+   *  dashed from `committedEndWeek` (exclusive) to here (inclusive). */
+  forecastWeek?: WeekId
+  committedEndWeek?: WeekId // the latest estimate — `◯`, or the last `△`
+  outOfOrder: boolean // delivered while an earlier Feature in its chain was not
 }
 
 /** A contiguous run of rows sharing an Area — one labelled band in the grid.
@@ -75,7 +94,7 @@ export interface MilestoneLine {
 export interface Plan {
   title: string
   weeks: WeekId[]
-  rows: FeatureRow[] // grouped: Areas in order of first appearance, ungrouped first
+  rows: FeatureRow[] // grouped: Areas in order of first appearance, ungrouped first; each parent followed by its subtree (pre-order)
   bands: Band[]
   milestones: MilestoneLine[]
   nowWeek: WeekId

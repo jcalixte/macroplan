@@ -195,7 +195,7 @@ describe("format version (macroplan_version)", () => {
   })
 
   it("rejects a future/unsupported version rather than mis-rendering it", () => {
-    expect(() => parseMacroplan(`macroplan_version = 2\n${feature}`)).toThrow(/unsupported/)
+    expect(() => parseMacroplan(`macroplan_version = 3\n${feature}`)).toThrow(/unsupported/)
   })
 
   it("rejects a non-integer version", () => {
@@ -217,7 +217,7 @@ describe("reference example (docs/macroplan.example.toml)", () => {
   it("conforms to the format the parser implements", () => {
     const raw = parseMacroplan(exampleToml)
     expect(raw.title).toBe("Q3 — Checkout revamp")
-    expect(raw.features).toHaveLength(5)
+    expect(raw.features).toHaveLength(9)
     expect(raw.milestones).toHaveLength(3)
   })
 
@@ -229,12 +229,29 @@ describe("reference example (docs/macroplan.example.toml)", () => {
       "Payments", // Platform
       "Dashboard",
       "Search", // Product — "product" in the file, merged case-insensitively
+      "Checkout flow", // Product, followed by its subtree
+      "Vendor contract",
+      "Integration",
+      "Rollout",
     ])
     expect(plan.bands).toEqual([
       { area: undefined, start: 0, span: 1 },
       { area: "Platform", start: 1, span: 2 },
-      { area: "Product", start: 3, span: 2 },
+      { area: "Product", start: 3, span: 6 },
     ])
+  })
+
+  it("derives the reference chain: Forecast after the unmoved ◯, △ from the real start", () => {
+    const plan = buildPlan(parseMacroplan(exampleToml), TODAY)
+    const at = (name: string) =>
+      plan.rows
+        .find((r) => r.name === name)!
+        .markers.map((m) => `${m.kind}@${m.week}`)
+        .sort()
+    expect(at("Integration")).toEqual(["forecast@2026-07-06", "original@2026-06-29"])
+    // Rollout: planned 07-06…07-13; really starts 07-13, re-estimated to 3 weeks.
+    expect(at("Rollout")).toEqual(["original@2026-07-13", "reestimate@2026-07-27"])
+    expect(at("Checkout flow")).toEqual(["forecast@2026-07-27", "original@2026-07-13"])
   })
 })
 

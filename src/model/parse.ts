@@ -1,7 +1,7 @@
 import * as v from "valibot"
 import { parse as parseToml } from "smol-toml"
 import { toYmd } from "./week"
-import type { RawPlan, StatusLevel } from "./types"
+import type { RawFeature, RawPlan, StatusLevel } from "./types"
 
 /** Thrown for any malformed source — message is safe to show the author. */
 export class PlanParseError extends Error {
@@ -33,11 +33,23 @@ const Area = v.pipe(
   v.nonEmpty("must not be empty — omit the key for an ungrouped Feature"),
 )
 
+// A Duration: a whole number of Weeks, at least one.
+const Weeks = v.pipe(
+  v.number("must be a whole number of weeks"),
+  v.integer("must be a whole number of weeks"),
+  v.minValue(1, "must be at least 1 week"),
+)
+
+// Which of these keys a block may carry depends on its place in the tree —
+// that is checked after every block is read, by `validateNesting`.
 const FeatureSchema = v.object({
   name: Name,
-  start: Ymd,
-  original: Ymd,
+  start: v.optional(Ymd),
+  original: v.optional(Ymd),
   reestimates: v.optional(v.array(Ymd, "must be a list of dates"), []),
+  parent: v.optional(v.pipe(v.string("must be a feature name"), v.nonEmpty("must not be empty"))),
+  weeks: v.optional(Weeks),
+  reestimate_weeks: v.optional(v.array(Weeks, "must be a list of whole numbers of weeks"), []),
   delivered: v.optional(Ymd),
   learning: v.optional(v.string()),
   status: v.optional(Status),
@@ -57,7 +69,7 @@ const MilestoneSchema = v.object({
 /** The Macroplan format version this build understands (see docs/format.md).
  *  Files may declare `macroplan_version`; a newer version is rejected rather
  *  than silently mis-rendered against a schema we don't know. */
-export const FORMAT_VERSION = 1
+export const FORMAT_VERSION = 2
 
 /** Parse + validate a Macroplan TOML source into the raw model. */
 export function parseMacroplan(source: string): RawPlan {
@@ -68,12 +80,14 @@ export function parseMacroplan(source: string): RawPlan {
     throw new PlanParseError(e instanceof Error ? e.message : String(e))
   }
 
-  checkVersion(data.macroplan_version)
+  const version = checkVersion(data.macroplan_version)
 
-  const features = asBlocks(data.feature, "feature").map((f, i) =>
-    check(FeatureSchema, f, blockWhere("feature", f, i)),
-  )
+  const features = asBlocks(data.feature, "feature").map((f, i) => {
+    const { reestimate_weeks, ...rest } = check(FeatureSchema, f, blockWhere("feature", f, i))
+    return { ...rest, reestimateWeeks: reestimate_weeks }
+  })
   requireUniqueFeatureNames(features)
+  validateNesting(features, version)
 
   return {
     title: data.title != null ? String(data.title) : "Untitled Macroplan",
@@ -89,8 +103,8 @@ export function parseMacroplan(source: string): RawPlan {
 /** Validate the optional `macroplan_version` marker. Absent means the current
  *  version; a future version we don't understand is rejected rather than
  *  silently mis-rendered. */
-function checkVersion(value: unknown): void {
-  if (value == null) return
+function checkVersion(value: unknown): number | undefined {
+  if (value == null) return undefined
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
     throw new PlanParseError("`macroplan_version` must be a positive integer")
   }
@@ -98,6 +112,123 @@ function checkVersion(value: unknown): void {
     throw new PlanParseError(
       `unsupported macroplan_version ${value} — this build understands up to ${FORMAT_VERSION}`,
     )
+  }
+  return value
+}
+
+/**
+ * Enforce the positional rules of nested Features (F12, ADR-0004). A child
+ * names its parent; siblings chain in file order. Every message names the key
+ * to use instead, because a flat `parent` key trades structural safety for
+ * references that can dangle — the messages are the price of that trade.
+ */
+function validateNesting(features: readonly RawFeature[], version: number | undefined): void {
+  const byName = new Map(features.map((f) => [f.name, f]))
+  const childCount = new Map<string, number>()
+  const nested = features.some((f) => f.parent != null)
+
+  if (nested && version === 1) {
+    throw new PlanParseError(
+      "`parent` needs macroplan_version = 2 — raise the version or remove the marker",
+    )
+  }
+
+  for (const f of features) {
+    if (f.parent == null) continue
+    const where = `feature "${f.name}"`
+    if (f.parent === f.name)
+      throw new PlanParseError(`${where}: \`parent\` names the feature itself`)
+    if (!byName.has(f.parent)) {
+      throw new PlanParseError(`${where}: \`parent\` "${f.parent}" names no feature`)
+    }
+    childCount.set(f.parent, (childCount.get(f.parent) ?? 0) + 1)
+  }
+
+  // Walk each Feature up to its root; meeting a name twice is a cycle.
+  const rootOf = new Map<string, string>()
+  for (const f of features) {
+    const seen = new Set<string>()
+    let node = f
+    while (node.parent != null) {
+      if (seen.has(node.name)) {
+        throw new PlanParseError(
+          `feature "${f.name}": \`parent\` forms a cycle (${[...seen].join(" → ")} → ${node.name})`,
+        )
+      }
+      seen.add(node.name)
+      node = byName.get(node.parent)!
+    }
+    rootOf.set(f.name, node.name)
+  }
+
+  // The anchor of each top-level parent's chain: its first leaf in reading order.
+  const anchorOf = new Map<string, string>()
+  const firstLeaf = (name: string): string => {
+    const first = features.find((c) => c.parent === name)
+    return first ? firstLeaf(first.name) : name
+  }
+  for (const f of features) {
+    if (f.parent == null && childCount.has(f.name)) anchorOf.set(f.name, firstLeaf(f.name))
+  }
+
+  for (const f of features) {
+    const where = `feature "${f.name}"`
+    const fail = (msg: string) => {
+      throw new PlanParseError(`${where}: ${msg}`)
+    }
+    const isParent = childCount.has(f.name)
+    const isChild = f.parent != null
+
+    if (isParent) {
+      for (const key of ["start", "original", "delivered", "weeks"] as const) {
+        if (f[key] != null) fail(`\`${key}\` is derived from its children — remove it`)
+      }
+      if (f.reestimates.length) {
+        fail("`reestimates` is derived from its children — re-estimate a child instead")
+      }
+      if (f.reestimateWeeks.length) {
+        fail("`reestimate_weeks` is derived from its children — re-estimate a child instead")
+      }
+    }
+
+    if (isChild) {
+      if (f.area != null) fail("a child Feature sits in its parent's Area — remove `area`")
+      if (!isParent) {
+        if (f.original != null)
+          fail("a child Feature plans its Duration — use `weeks`, not `original`")
+        if (f.reestimates.length) {
+          fail(
+            "a child Feature re-estimates its Duration — use `reestimate_weeks`, not `reestimates`",
+          )
+        }
+        if (f.weeks == null) fail("missing `weeks` — a child Feature plans its Duration")
+        const root = rootOf.get(f.name)!
+        const isAnchor = anchorOf.get(root) === f.name
+        if (isAnchor && f.start == null) {
+          fail(`missing \`start\` — the first Feature of the chain under "${root}" anchors it`)
+        }
+        if (!isAnchor && f.start != null) {
+          fail(`only the first Feature of the chain under "${root}" sets \`start\` — remove it`)
+        }
+        let previous = f.weeks!
+        for (const w of f.reestimateWeeks) {
+          if (w <= previous) {
+            fail(
+              "each `reestimate_weeks` value must be longer than the one before — a Re-estimate is a slip",
+            )
+          }
+          previous = w
+        }
+      }
+    } else if (!isParent) {
+      if (f.weeks != null)
+        fail("`weeks` is for a child Feature — a top-level Feature uses `original`")
+      if (f.reestimateWeeks.length) {
+        fail("`reestimate_weeks` is for a child Feature — a top-level Feature uses `reestimates`")
+      }
+      if (f.start == null) fail("missing `start`")
+      if (f.original == null) fail("missing `original`")
+    }
   }
 }
 
