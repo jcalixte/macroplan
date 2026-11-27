@@ -31,14 +31,21 @@ const PLAN_KEYS: Completion[] = [
 
 const FEATURE_KEYS: Completion[] = [
   { label: "name", insert: "name = ", detail: "required" },
-  { label: "start", insert: "start = ", detail: "date, required" },
-  { label: "original", insert: "original = ", detail: "Original Estimate — date, required" },
+  { label: "start", insert: "start = ", detail: "date — on a chain, its first child only" },
+  { label: "original", insert: "original = ", detail: "Original Estimate — date, top-level" },
   { label: "reestimates", insert: "reestimates = ", detail: "list of dates" },
   { label: "delivered", insert: "delivered = ", detail: "date" },
   { label: "status", insert: "status = ", detail: "on-track | at-risk | off-track" },
   { label: "learning", insert: "learning = ", detail: "string" },
   { label: "note", insert: "note = ", detail: "string" },
   { label: "area", insert: "area = ", detail: "Area — string, groups Features" },
+  { label: "parent", insert: "parent = ", detail: "parent Feature — makes this a child" },
+  { label: "weeks", insert: "weeks = ", detail: "child's Duration — whole weeks" },
+  {
+    label: "reestimate_weeks",
+    insert: "reestimate_weeks = ",
+    detail: "child's re-estimated Durations",
+  },
 ]
 
 const MILESTONE_KEYS: Completion[] = [
@@ -112,8 +119,23 @@ export function getCompletions(
     }
   }
 
+  // ── value: parent = "<here>" — any other Feature can be a parent ─────────
+  if (block === "feature") {
+    const parent = /^(\s*parent\s*=\s*)"?([^"]*)$/.exec(linePrefix)
+    if (parent) {
+      const own = blockName(source, lineStart, block)
+      const items = filter(
+        featureNames(source)
+          .filter((n) => n !== own)
+          .map((n) => ({ label: n, insert: `"${n}"` })),
+        parent[2],
+      )
+      return result(lineStart + parent[1].length, caret, items)
+    }
+  }
+
   // ── key / header position: only indentation then an optional word ─────────
-  const key = /^(\s*)(\[*)([A-Za-z]*)$/.exec(linePrefix)
+  const key = /^(\s*)(\[*)([A-Za-z_]*)$/.exec(linePrefix)
   if (key) {
     const [, indent, brackets, word] = key
     if (brackets) {
@@ -195,8 +217,23 @@ function currentBlock(source: string, lineStart: number): Block {
   return block
 }
 
+/** The `name` of the block owning the line at `lineStart`, if written yet. */
+function blockName(source: string, lineStart: number, block: Block): string | undefined {
+  return /^[ \t]*name\s*=\s*"([^"]*)"/m.exec(blockRegion(source, lineStart, block))?.[1]
+}
+
 /** Keys already written in the current block, so we don't offer duplicates. */
 function presentKeys(source: string, lineStart: number, block: Block): Set<string> {
+  const taken = new Set<string>()
+  const region = blockRegion(source, lineStart, block)
+  const keyLine = /^[ \t]*([A-Za-z][\w-]*)\s*=/gm
+  let m: RegExpExecArray | null
+  while ((m = keyLine.exec(region)) !== null) taken.add(m[1])
+  return taken
+}
+
+/** The source text of the block owning the line at `lineStart`. */
+function blockRegion(source: string, lineStart: number, block: Block): string {
   const headers: number[] = []
   HEADER_RE.lastIndex = 0
   let m: RegExpExecArray | null
@@ -215,11 +252,7 @@ function presentKeys(source: string, lineStart: number, block: Block): Set<strin
     }
   }
 
-  const taken = new Set<string>()
-  const region = source.slice(start, end)
-  const keyLine = /^[ \t]*([A-Za-z][\w-]*)\s*=/gm
-  while ((m = keyLine.exec(region)) !== null) taken.add(m[1])
-  return taken
+  return source.slice(start, end)
 }
 
 /** Names declared in `[[feature]]` blocks — the valid targets for `requires`. */

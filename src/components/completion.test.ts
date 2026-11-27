@@ -30,6 +30,9 @@ describe("completion context", () => {
       "learning",
       "note",
       "area",
+      "parent",
+      "weeks",
+      "reestimate_weeks",
     ])
   })
 
@@ -209,5 +212,22 @@ describe("area value completion", () => {
 
   it("does not offer Areas for a milestone", () => {
     expect(labelsAt(PLAN + '[[milestone]]\nname = "M"\narea = |')).toEqual([])
+  })
+})
+
+describe("nesting completion", () => {
+  const PLAN = '[[feature]]\nname = "Payments"\n\n[[feature]]\nname = "Auth"\n\n'
+
+  it("offers other Features as a parent, never the block itself", () => {
+    expect(labelsAt(PLAN + '[[feature]]\nname = "Vendor"\nparent = |')).toEqual([
+      "Payments",
+      "Auth",
+    ])
+    expect(labelsAt(PLAN + '[[feature]]\nname = "Vendor"\nparent = "Pa|')).toEqual(["Payments"])
+    expect(labelsAt('[[feature]]\nname = "Payments"\nparent = |')).toEqual([])
+  })
+
+  it("completes a key containing an underscore", () => {
+    expect(labelsAt('[[feature]]\nname = "X"\nreestimate_|')).toEqual(["reestimate_weeks"])
   })
 })
