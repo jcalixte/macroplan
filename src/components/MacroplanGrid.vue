@@ -270,7 +270,7 @@ const bandStyle = computed(() => ({
         <span class="wklabel">{{ c.label }}</span>
         <span v-if="c.isNow" class="badge-now">now</span>
       </div>
-      <div class="hcell learnhead">Status / Learning</div>
+      <div class="hcell learnhead">Status / Problem / Countermeasure</div>
 
       <!-- Area gutter: one cell per band, spanning its Features. Explicitly
            placed, so the auto-flowed feature rows below skip column 1. -->
