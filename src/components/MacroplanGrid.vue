@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { computed, useId } from "vue"
+import { computed, ref, onMounted, useId } from "vue"
 import type { Plan, FeatureRow, MarkerKind } from "../model/types"
+import { GLYPH, MARKER_CLASS } from "./glyphs"
 import { troubleBelow, visibleRows } from "../model/plan"
 import { weekLabel, type WeekId } from "../model/week"
 
-const props = withDefaults(defineProps<{ plan: Plan; expanded?: ReadonlySet<string> }>(), {
-  expanded: () => new Set<string>(),
-})
-const emit = defineEmits<{ toggle: [name: string] }>()
+// `compact` narrows the name and Week columns for a phone, where a 16rem name
+// column would leave room for four Weeks.
+const props = withDefaults(
+  defineProps<{ plan: Plan; expanded?: ReadonlySet<string>; compact?: boolean }>(),
+  { expanded: () => new Set<string>(), compact: false },
+)
+const emit = defineEmits<{ toggle: [name: string]; inspect: [name: string] }>()
 
 // The rows and Area bands actually drawn: folded parents hide their subtree,
 // and band spans are recounted over what is shown (F11).
@@ -15,20 +19,6 @@ const shown = computed(() => visibleRows(props.plan, props.expanded))
 
 type Tone = "success" | "warning" | "error" | "neutral"
 
-const GLYPH: Record<MarkerKind, string> = {
-  original: "◯",
-  reestimate: "△",
-  "delivered-on-time": "◉",
-  "delivered-late": "▲",
-  forecast: "◌",
-}
-const MARKER_CLASS: Record<MarkerKind, string> = {
-  original: "text-base-content/60",
-  reestimate: "text-ink-warning",
-  "delivered-on-time": "text-ink-success",
-  "delivered-late": "text-ink-error",
-  forecast: "text-base-content/50", // computed, not committed — drawn muted
-}
 // When two markers land on the same week, the higher rank owns the cell.
 const RANK: Record<MarkerKind, number> = {
   "delivered-late": 3,
@@ -59,8 +49,8 @@ const TONE_CHIP: Record<Tone, string> = {
 // Layout constants (must match the CSS vars --name-w / --wk / --area-w) for
 // stacking math. Grid column 1 is the Area gutter, 2 the Feature name, then
 // one column per Week — so a Week's 1-based column is its index + 3.
-const NAME_W = 16 * 16
-const WK = 3.5 * 16
+const NAME_W = computed(() => (props.compact ? 9 : 16) * 16)
+const WK = computed(() => (props.compact ? 2.75 : 3.5) * 16)
 const AREA_W = 2 * 16
 const WEEK_COL_1 = 3 // grid column of the first Week
 const BAND_CHAR = 6.6 // ≈ Fira Code advance (px) at the band font size
@@ -72,7 +62,7 @@ const weeks = computed(() => props.plan.weeks)
 // unconditional — only its width changes.
 const hasAreas = computed(() => props.plan.bands.some((b) => b.area != null))
 const rootStyle = computed(() => ({ "--area-w": hasAreas.value ? "2rem" : "0rem" }))
-const leadW = computed(() => (hasAreas.value ? AREA_W : 0) + NAME_W)
+const leadW = computed(() => (hasAreas.value ? AREA_W : 0) + NAME_W.value)
 
 const gridStyle = computed(() => ({
   gridTemplateColumns: `var(--area-w) var(--name-w) repeat(${weeks.value.length}, var(--wk)) minmax(9rem, 1fr)`,
@@ -208,6 +198,7 @@ interface FlagItem {
   col: number // 1-based grid column
   text: string
   title: string
+  detail: string // what the flag's popover says beneath its name
 }
 
 // Label flags above the axis — milestones and Breaks — greedily
@@ -222,6 +213,7 @@ const milestoneFlags = computed(() => {
     title: m.unmet.length
       ? `${m.name} — unmet: ${m.unmet.join(", ")}`
       : `${m.name} — all required features met`,
+    detail: "",
   }))
   // An off period is flagged at its first visible week, so one that began
   // before the plan's span is still labelled.
@@ -237,13 +229,14 @@ const milestoneFlags = computed(() => {
         col: i + WEEK_COL_1,
         text: `▨ ${u.name}`,
         title: `${u.name} — break, ${span}`,
+        detail: `Break, ${span}`,
       },
     ]
   })
   const items = [...ms, ...off].filter((x) => x.col >= WEEK_COL_1).sort((a, b) => a.col - b.col)
   const rowEnd: number[] = [] // px x-extent of the last flag placed in each row
   return items.map((x) => {
-    const startX = leadW.value + (x.col - WEEK_COL_1) * WK
+    const startX = leadW.value + (x.col - WEEK_COL_1) * WK.value
     const width = x.text.length * BAND_CHAR + 14
     let row = 0
     while (row < rowEnd.length && rowEnd[row] > startX - 6) row++
@@ -251,6 +244,21 @@ const milestoneFlags = computed(() => {
     return { ...x, row: row + 1 }
   })
 })
+const flagPopId = (i: number) => `${uid}-flag-${i}`
+const flagAnchor = (i: number) => `--flag-${i}`
+
+// Open on the current Week, one past Week before it, when it would otherwise
+// sit off to the right: a reader's first question is "where are we now?". The
+// grid remounts per plan, so this runs once per plan, never while typing.
+const root = ref<HTMLElement>()
+onMounted(() => {
+  const el = root.value
+  const now = weeks.value.indexOf(props.plan.nowWeek)
+  if (!el || !props.plan.nowInRange || now < 1) return
+  const visible = el.clientWidth - leadW.value
+  if ((now + 1) * WK.value > visible) el.scrollLeft = (now - 1) * WK.value
+})
+
 const bandRows = computed(() => milestoneFlags.value.reduce((n, f) => Math.max(n, f.row), 0))
 const bandStyle = computed(() => ({
   gridTemplateColumns: `var(--area-w) var(--name-w) repeat(${weeks.value.length}, var(--wk))`,
@@ -260,27 +268,49 @@ const bandStyle = computed(() => ({
 
 <template>
   <div
+    ref="root"
     class="macroplan overflow-auto rounded-box border border-base-300 bg-base-100"
+    :class="{ compact }"
     :style="rootStyle"
   >
     <!-- milestone band: stacked label flags with leader lines down to the axis -->
     <div v-if="milestoneFlags.length" class="ms-band" :style="bandStyle">
-      <template v-for="f in milestoneFlags" :key="f.kind + '-' + f.name + '-' + f.col">
+      <template v-for="(f, fi) in milestoneFlags" :key="f.kind + '-' + f.name + '-' + f.col">
         <i
           v-if="f.kind === 'milestone'"
           class="ms-lead"
           :style="{ gridColumn: f.col, gridRow: f.row + ' / -1' }"
         />
-        <span
+        <!-- A button, not a hover title: on a phone a tap is the only way to
+             learn which Features a Milestone is still waiting on. -->
+        <button
+          type="button"
           class="ms-flag"
           :class="{ 'off-flag': f.kind === 'off' }"
-          :style="{ gridColumn: f.col, gridRow: f.row }"
+          :style="{ gridColumn: f.col, gridRow: f.row, anchorName: flagAnchor(fi) }"
           :title="f.title"
+          :popovertarget="flagPopId(fi)"
         >
           <span v-if="f.kind === 'off'" class="off-icon">▨</span>
           <span v-else class="ms-dia">◆</span> {{ f.name
           }}<span v-if="f.unmet.length" class="ms-unmet"> · {{ f.unmet.length }} unmet</span>
-        </span>
+        </button>
+        <div
+          :id="flagPopId(fi)"
+          popover
+          class="cellpop"
+          :style="{ positionAnchor: flagAnchor(fi) }"
+        >
+          <p class="popname">{{ f.name }}</p>
+          <dl v-if="f.kind === 'milestone'">
+            <template v-if="f.unmet.length">
+              <dt>Unmet</dt>
+              <dd>{{ f.unmet.join(", ") }}</dd>
+            </template>
+            <dd v-else>All required Features met</dd>
+          </dl>
+          <p v-else>{{ f.detail }}</p>
+        </div>
       </template>
     </div>
 
@@ -335,7 +365,15 @@ const bandStyle = computed(() => ({
           >
             <span class="chevron" aria-hidden="true">▸</span>
           </button>
-          <span class="truncate" :title="row.name">{{ row.name }}</span>
+          <button
+            type="button"
+            class="namebtn truncate"
+            :title="row.name"
+            aria-haspopup="dialog"
+            @click="emit('inspect', row.name)"
+          >
+            {{ row.name }}
+          </button>
           <span v-if="row.childCount" class="childcount">({{ row.childCount }})</span>
           <span
             v-if="hiddenTrouble(row)"
@@ -461,6 +499,12 @@ const bandStyle = computed(() => ({
   --wk: 3.5rem;
   --area-w: 0rem; /* set inline: 2rem once any Feature has an Area */
 }
+/* A phone: NAME_W / WK in the script follow these. 2.75rem keeps a Week a
+   44px column; 9rem still fits a two-word name. */
+.macroplan.compact {
+  --name-w: 9rem;
+  --wk: 2.75rem;
+}
 .plan-grid {
   display: grid;
   width: max-content;
@@ -478,6 +522,13 @@ const bandStyle = computed(() => ({
 }
 .ms-flag {
   align-self: center;
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
   white-space: nowrap;
   overflow: visible;
   font-size: 0.6875rem; /* 11px: BAND_CHAR is Fira Code's 0.6em advance at this size */
@@ -595,8 +646,11 @@ const bandStyle = computed(() => ({
 .row-off-track {
   --row-base: color-mix(in oklab, var(--color-alarm) 26%, var(--color-base-100));
 }
-.row:hover {
-  --row-bg: color-mix(in oklab, var(--color-primary) 7%, var(--row-base));
+/* Hover only where there is one: on touch, :hover sticks to the last row tapped. */
+@media (hover: hover) {
+  .row:hover {
+    --row-bg: color-mix(in oklab, var(--color-primary) 7%, var(--row-base));
+  }
 }
 .row-at-risk .namecell,
 .row-off-track .namecell {
@@ -694,6 +748,42 @@ const bandStyle = computed(() => ({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* The name opens the Feature's details: the one place a cut-off name, its
+   Status and its Problem can all be read without hover or a long scroll. */
+.namebtn {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .namebtn:hover {
+    text-decoration: underline dotted;
+    text-underline-offset: 0.2em;
+  }
+}
+.namebtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 0.2rem;
+}
+/* A finger needs taller rows than a pointer: 40px, and a disclosure hit area
+   to match. */
+@media (pointer: coarse) {
+  .namecell,
+  .cell,
+  .learncell {
+    min-height: 2.5rem;
+  }
+  .disclosure::before {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
 }
 
 .cell {

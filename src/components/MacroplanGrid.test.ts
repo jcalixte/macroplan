@@ -282,3 +282,33 @@ to = 2026-06-22
     expect(mountGrid().find(".legend").text()).not.toContain("break")
   })
 })
+
+describe("MacroplanGrid — reading on a phone", () => {
+  it("asks to inspect a Feature when its name is tapped", async () => {
+    const w = mountGrid()
+    await w.findAll(".namebtn")[3].trigger("click")
+    expect(w.emitted("inspect")).toEqual([["Search"]])
+  })
+
+  it("opens a milestone flag to name its unmet Features, no hover needed", () => {
+    const w = mountGrid()
+    const flag = w.findAll("button.ms-flag").find((f) => f.text().includes("MVP go-live"))!
+    const pop = w.find(`#${flag.attributes("popovertarget")}`)
+    expect(pop.attributes("popover")).toBeDefined()
+    expect(pop.text()).toContain("Unmet")
+    expect(pop.text()).toContain("Dashboard")
+  })
+
+  it("narrows its columns when compact", () => {
+    const w = mount(MacroplanGrid, { props: { plan, compact: true } })
+    expect(w.find(".macroplan").classes()).toContain("compact")
+    expect(mountGrid().find(".macroplan").classes()).not.toContain("compact")
+  })
+
+  it("scrolls the now week into view, one past week before it", () => {
+    const w = mount(MacroplanGrid, { props: { plan }, attachTo: document.body })
+    const now = plan.weeks.indexOf(plan.nowWeek)
+    expect((w.find(".macroplan").element as HTMLElement).scrollLeft).toBe((now - 1) * 56)
+    w.unmount()
+  })
+})
