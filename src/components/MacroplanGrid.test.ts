@@ -52,22 +52,44 @@ describe("MacroplanGrid renders the sample plan", () => {
     expect(cells[1].text()).toContain("Vendor lead time")
   })
 
+  it("lights up only in-flight Features in trouble: tinted row and filled chip", () => {
+    const w = mountGrid()
+    const rows = w.findAll(".plan-grid > .row")
+    const lit = rows.map((r) => r.classes().find((c) => c.startsWith("row-")) ?? null)
+    expect(lit).toEqual([null, null, "row-off-track", "row-at-risk", null])
+    const fills = w.findAll(".learncell .chip-fill").map((c) => c.text())
+    expect(fills).toEqual(["off track", "at risk"])
+  })
+
   it("reads Problem → Countermeasure on an at-risk Feature", () => {
     const search = mountGrid().findAll(".learncell")[3]
     expect(search.find(".problem").text()).toBe("Third-party search API is flaky.")
     expect(search.find(".countermeasure").text()).toBe("Spike a fallback on the in-house index.")
-    expect(search.find(".celltext").attributes("title")).toBe(
-      "Problem: Third-party search API is flaky.\nCountermeasure: Spike a fallback on the in-house index.",
-    )
+    const button = search.find("button.celltext")
+    const pop = search.find(".cellpop")
+    expect(pop.attributes("popover")).toBeDefined()
+    expect(button.attributes("popovertarget")).toBe(pop.attributes("id"))
+    expect(pop.findAll("dd").map((d) => d.text())).toEqual([
+      "Third-party search API is flaky.",
+      "Spike a fallback on the in-house index.",
+    ])
   })
 
   it("puts the Countermeasure on its own line, after the Problem, led by the arrow", () => {
     const trouble = mountGrid().findAll(".learncell")[3].find(".trouble")
     const lines = trouble.element.children
     expect(lines).toHaveLength(2)
-    expect(lines[0].className).toBe("problem")
-    expect(lines[1].className).toBe("cm-line")
+    expect(lines[0].classList.contains("problem")).toBe(true)
+    expect(lines[1].classList.contains("cm-line")).toBe(true)
     expect(trouble.find(".cm-line .arrow").text()).toBe("→")
+  })
+
+  it("gives every popover its own id, and a Learning one to delivered Features", () => {
+    const w = mountGrid()
+    const ids = w.findAll(".cellpop").map((p) => p.attributes("id"))
+    expect(new Set(ids).size).toBe(ids.length)
+    const payments = w.findAll(".learncell")[1]
+    expect(payments.find(".cellpop dt").text()).toBe("Learning")
   })
 
   it("shows no arrow on an off-track Feature: no Countermeasure", () => {
@@ -75,7 +97,10 @@ describe("MacroplanGrid renders the sample plan", () => {
     expect(dashboard.find(".problem").text()).toBe("No owner since the reorg.")
     expect(dashboard.find(".arrow").exists()).toBe(false)
     expect(dashboard.find(".countermeasure").exists()).toBe(false)
-    expect(dashboard.find(".celltext").attributes("title")).toContain("Countermeasure: none")
+    expect(dashboard.findAll(".cellpop dd").map((d) => d.text())).toEqual([
+      "No owner since the reorg.",
+      "None yet",
+    ])
   })
 
   it("shows no text on an on-track Feature, only its chip", () => {

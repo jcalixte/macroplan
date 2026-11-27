@@ -108,6 +108,7 @@ export function parseMacroplan(source: string): RawPlan {
 
   return {
     title: data.title != null ? String(data.title) : "Untitled Macroplan",
+    version,
     start: data.start != null ? check(Ymd, data.start, "plan", "start") : undefined,
     end: data.end != null ? check(Ymd, data.end, "plan", "end") : undefined,
     features,

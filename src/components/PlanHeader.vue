@@ -22,8 +22,8 @@ const items = computed(() => {
   return [
     { n: t.onTime, glyph: "◉", cls: "text-ink-success", label: "on time" },
     { n: t.late, glyph: "▲", cls: "text-ink-error", label: "late" },
-    { n: t.offTrack, glyph: "●", cls: "text-ink-error", label: "off track" },
-    { n: t.atRisk, glyph: "●", cls: "text-ink-warning", label: "at risk" },
+    { n: t.offTrack, glyph: "", cls: "", label: "off track", fill: "fill-off-track" },
+    { n: t.atRisk, glyph: "", cls: "", label: "at risk", fill: "fill-at-risk" },
     { n: t.onTrack, glyph: "●", cls: "text-ink-success", label: "on track" },
     { n: t.inFlight, glyph: "○", cls: "text-ink-muted", label: "in flight" },
   ].filter((i) => i.n > 0)
@@ -37,8 +37,8 @@ const items = computed(() => {
       {{ span }} · {{ tally.features }} feature{{ tally.features === 1 ? "" : "s" }}
     </p>
     <ul v-if="items.length || tally.milestones" class="readout" aria-label="Plan status">
-      <li v-for="i in items" :key="i.label">
-        <span class="glyph" :class="i.cls" aria-hidden="true">{{ i.glyph }}</span>
+      <li v-for="i in items" :key="i.label" :class="i.fill && ['fill', i.fill]">
+        <span v-if="i.glyph" class="glyph" :class="i.cls" aria-hidden="true">{{ i.glyph }}</span>
         <b>{{ i.n }}</b> {{ i.label }}
       </li>
       <li v-if="tally.milestones" class="ms" :class="{ 'has-unmet': tally.unmetMilestones }">
@@ -93,6 +93,24 @@ const items = computed(() => {
 .readout b {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+/* Trouble leads the readout as the same filled pills the grid's chips use. */
+.readout .fill {
+  padding: 0 0.5rem;
+  border-radius: 9999px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.fill-off-track {
+  background: var(--color-error);
+  color: var(--color-error-content);
+}
+.fill-at-risk {
+  background: var(--color-warning);
+  color: var(--color-warning-content);
 }
 .readout .ms {
   padding-left: 1rem;

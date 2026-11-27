@@ -14,6 +14,7 @@ const {
   source,
   plan,
   error,
+  hints,
   expanded,
   toggleExpanded,
   setExpanded,
@@ -337,7 +338,13 @@ const paletteAria = ariaChord(PALETTE)
         <div class="pane-bar">
           <span class="pane-label">Source (TOML)</span>
         </div>
-        <PlanEditor ref="editor" v-model="source" :error="error" class="min-h-0 flex-1" />
+        <PlanEditor
+          ref="editor"
+          v-model="source"
+          :error="error"
+          :hints="hints"
+          class="min-h-0 flex-1"
+        />
       </section>
 
       <section v-if="showMacroplan" class="flex min-h-0 min-w-0 flex-1 flex-col">

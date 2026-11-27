@@ -43,6 +43,7 @@ export interface RawBreak {
 
 export interface RawPlan {
   title: string
+  version?: number // the declared `macroplan_version`; absent means the current format
   start?: string // yyyy-mm-dd — optional authored left edge of the plan's span
   end?: string // yyyy-mm-dd — optional authored right edge of the plan's span
   features: RawFeature[]

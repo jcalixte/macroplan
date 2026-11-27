@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, useId } from "vue"
 import type { Plan, FeatureRow, MarkerKind } from "../model/types"
 import { visibleRows } from "../model/plan"
 import { weekLabel, type WeekId } from "../model/week"
@@ -96,9 +96,24 @@ function inTrouble(row: FeatureRow): boolean {
   return row.status === "at-risk" || row.status === "off-track"
 }
 
-function troubleTitle(row: FeatureRow): string {
-  return `Problem: ${row.problem ?? "not stated"}\nCountermeasure: ${row.countermeasure ?? "none"}`
+// An in-flight Feature in trouble paints its whole row: a tinted band, a filled
+// Status chip, a bold name and a heavier bar — the andon a reviewer scans for.
+// Delivered Features drop their Status, so they never light up.
+function trouble(row: FeatureRow): "at-risk" | "off-track" | null {
+  if (row.delivered) return null
+  return row.status === "at-risk" || row.status === "off-track" ? row.status : null
 }
+
+function chipClass(row: FeatureRow): string {
+  const t = trouble(row)
+  return t ? `chip-fill chip-${t}` : TONE_CHIP[tone(row)]
+}
+
+// Each Status / Problem / Countermeasure cell opens a popover with its full
+// text, anchored to the cell. The ids are per grid instance, not global.
+const uid = useId()
+const popId = (ri: number) => `${uid}-status-${ri}`
+const anchor = (ri: number) => `--status-${ri}`
 
 function markerAt(row: FeatureRow, w: WeekId): MarkerKind | null {
   let best: MarkerKind | null = null
@@ -286,7 +301,12 @@ const bandStyle = computed(() => ({
       <!-- feature rows -->
       <!-- display: contents keeps the cells on the grid; the wrapper only
            exists so hovering any cell can tint the whole row -->
-      <div v-for="(row, ri) in shown.rows" :key="row.name" class="row">
+      <div
+        v-for="(row, ri) in shown.rows"
+        :key="row.name"
+        class="row"
+        :class="trouble(row) && `row-${trouble(row)}`"
+      >
         <div
           class="namecell border-l-4"
           :class="TONE_BORDER[tone(row)]"
@@ -329,25 +349,55 @@ const bandStyle = computed(() => ({
           <template v-if="row.delivered">
             <template v-if="row.learning">
               <span class="chip" :class="TONE_CHIP[tone(row)]">learned</span>
-              <span class="celltext" :title="`Learning: ${row.learning}`">{{ row.learning }}</span>
+              <button
+                type="button"
+                class="celltext"
+                :popovertarget="popId(ri)"
+                :style="{ anchorName: anchor(ri) }"
+              >
+                <span class="clamp">{{ row.learning }}</span>
+              </button>
+              <div :id="popId(ri)" popover class="cellpop" :style="{ positionAnchor: anchor(ri) }">
+                <p class="popname">{{ row.name }}</p>
+                <dl>
+                  <dt>Learning</dt>
+                  <dd>{{ row.learning }}</dd>
+                </dl>
+              </div>
             </template>
             <span v-else class="muted">{{
               row.onTime ? "delivered on time" : "delivered late"
             }}</span>
           </template>
           <template v-else>
-            <span class="chip" :class="TONE_CHIP[tone(row)]">{{ statusWord(row) }}</span>
-            <span
-              v-if="inTrouble(row) && (row.problem || row.countermeasure)"
-              class="celltext trouble"
-              :title="troubleTitle(row)"
-            >
-              <span v-if="row.problem" class="problem">{{ row.problem }}</span>
-              <span v-if="row.countermeasure" class="cm-line">
-                <span class="arrow" aria-hidden="true">→</span>
-                <span class="countermeasure">{{ row.countermeasure }}</span>
-              </span>
-            </span>
+            <span class="chip" :class="chipClass(row)">{{ statusWord(row) }}</span>
+            <template v-if="inTrouble(row) && (row.problem || row.countermeasure)">
+              <button
+                type="button"
+                class="celltext trouble"
+                :popovertarget="popId(ri)"
+                :style="{ anchorName: anchor(ri) }"
+              >
+                <span v-if="row.problem" class="problem clamp">{{ row.problem }}</span>
+                <span v-if="row.countermeasure" class="cm-line">
+                  <span class="arrow" aria-hidden="true">→</span>
+                  <span class="countermeasure clamp">{{ row.countermeasure }}</span>
+                </span>
+              </button>
+              <div :id="popId(ri)" popover class="cellpop" :style="{ positionAnchor: anchor(ri) }">
+                <p class="popname">
+                  {{ row.name }} <span class="popstatus">{{ statusWord(row) }}</span>
+                </p>
+                <dl>
+                  <dt>Problem</dt>
+                  <dd :class="{ muted: !row.problem }">{{ row.problem ?? "Not stated" }}</dd>
+                  <dt>Countermeasure</dt>
+                  <dd :class="{ muted: !row.countermeasure }">
+                    {{ row.countermeasure ?? "None yet" }}
+                  </dd>
+                </dl>
+              </div>
+            </template>
           </template>
         </div>
       </div>
@@ -365,14 +415,14 @@ const bandStyle = computed(() => ({
     <span><b class="ms-dia">◆</b> milestone</span>
     <span><b class="now-swatch"></b> today</span>
     <span v-if="plan.breaks.length"><b class="off-swatch"></b> break</span>
+    <span><b class="chip chip-fill chip-off-track">off track</b> no countermeasure</span>
+    <span><b class="chip chip-fill chip-at-risk">at risk</b> countermeasure set</span>
     <span><i class="legend-problem">problem</i> <b>→</b> countermeasure</span>
   </div>
 </template>
 
 <style scoped>
 .macroplan {
-  --row-bg: var(--color-base-100);
-  --row-hover: color-mix(in oklab, var(--color-primary) 7%, var(--color-base-100));
   --name-w: 16rem;
   --wk: 3.5rem;
   --area-w: 0rem; /* set inline: 2rem once any Feature has an Area */
@@ -499,8 +549,34 @@ const bandStyle = computed(() => ({
 .row {
   display: contents;
 }
+.row {
+  --row-base: var(--color-base-100);
+  --row-bg: var(--row-base);
+}
+/* Trouble tints, measured on both themes: base-content stays ≥ 11:1 on them and
+   the status inks (bars, borders) ≥ 3.8:1. */
+.row-at-risk {
+  --row-base: color-mix(in oklab, var(--color-warning) 18%, var(--color-base-100));
+}
+.row-off-track {
+  --row-base: color-mix(in oklab, var(--color-error) 14%, var(--color-base-100));
+}
 .row:hover {
-  --row-bg: var(--row-hover);
+  --row-bg: color-mix(in oklab, var(--color-primary) 7%, var(--row-base));
+}
+.row-at-risk .namecell,
+.row-off-track .namecell {
+  font-weight: 700;
+}
+.row-at-risk .bar,
+.row-at-risk .riser,
+.row-off-track .bar,
+.row-off-track .riser {
+  opacity: 1;
+}
+.row-at-risk .bar,
+.row-off-track .bar {
+  height: 3px;
 }
 .namecell,
 .cell,
@@ -633,10 +709,35 @@ const bandStyle = computed(() => ({
 .learncell .muted {
   color: var(--color-ink-muted);
 }
+/* The text is a button that opens the full text in a popover. Capping its width
+   is what stops one long sentence from widening the whole grid off-screen. */
 .learncell .celltext {
+  max-width: 24rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.2rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.learncell .celltext:hover .clamp {
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+}
+.learncell .celltext:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+/* At most two lines per part; the popover has the rest. */
+.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 /* The chip names the kind of text that follows: a Status or a Learning. */
 .chip {
@@ -649,23 +750,32 @@ const bandStyle = computed(() => ({
   line-height: 1.4;
   white-space: nowrap;
 }
+/* Filled chip for a Feature in trouble: the loudest mark on the row. DaisyUI's
+   content pairs measure 5.2:1 (warning) and 5.5:1 (error) on both themes. */
+.chip-fill {
+  border-color: transparent;
+  padding-inline: 0.45rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.chip-at-risk {
+  background: var(--color-warning);
+  color: var(--color-warning-content);
+}
+.chip-off-track {
+  background: var(--color-error);
+  color: var(--color-error-content);
+}
 /* Problem → Countermeasure, one per line so a long Problem never truncates the
-   action. The fact is muted; the action carries the weight. The arrow hangs in
+   action. The Problem is what a reviewer must see first, so it leads in bold. The arrow hangs in
    the gutter under the chip, so both lines start flush. */
-.learncell .trouble {
-  overflow: visible;
-  white-space: normal;
+.learncell .celltext {
   line-height: 1.25;
 }
-.trouble .problem,
-.trouble .countermeasure {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.trouble .countermeasure {
-  font-weight: 500;
+.trouble .problem {
+  font-weight: 700;
 }
 .cm-line {
   position: relative;
@@ -687,10 +797,80 @@ const bandStyle = computed(() => ({
 .arrow {
   color: var(--color-ink-muted);
 }
-.trouble .problem,
-.legend-problem {
+
+/* Full text of a cell. Without anchor positioning it falls back to the UA's
+   centred popover, which is still readable and dismissible. */
+.cellpop {
+  width: max-content;
+  max-width: min(28rem, calc(100vw - 2rem));
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 0.4rem;
+  background: var(--color-base-100);
+  color: var(--color-base-content);
+  box-shadow: 0 8px 24px color-mix(in oklch, black 16%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+@supports (position-anchor: --a) {
+  .cellpop {
+    inset: auto;
+    margin: 0.25rem 0;
+    position-area: bottom span-right;
+    position-try-fallbacks:
+      flip-inline,
+      flip-block,
+      flip-block flip-inline;
+  }
+}
+.cellpop .popname {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+}
+.cellpop .popstatus {
+  font-weight: 500;
   color: var(--color-ink-muted);
+}
+.cellpop dt {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-muted);
+}
+.cellpop dd {
+  margin: 0 0 0.5rem;
+  overflow-wrap: anywhere;
+}
+.cellpop dd:last-child {
+  margin-bottom: 0;
+}
+.cellpop .muted {
+  color: var(--color-ink-muted);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cellpop {
+    transition:
+      opacity 150ms ease-out,
+      display 150ms allow-discrete,
+      overlay 150ms allow-discrete;
+  }
+  .cellpop:not(:popover-open) {
+    opacity: 0;
+  }
+  @starting-style {
+    .cellpop:popover-open {
+      opacity: 0;
+    }
+  }
+}
+.legend-problem {
   font-style: normal;
+  font-weight: 700;
+  color: var(--color-base-content);
 }
 
 /* "today" — a neutral grey column (red is reserved for problems) */

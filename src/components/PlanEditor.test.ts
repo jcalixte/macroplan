@@ -72,3 +72,20 @@ describe("PlanEditor completion keys", () => {
     expect(lastEmit(wrapper)).toBe("t")
   })
 })
+
+describe("PlanEditor length hints", () => {
+  const hint = "Search: `problem` is 92 characters, keep it within 80"
+
+  it("lists each hint under the editor while the plan parses", async () => {
+    const w = mountEditor()
+    await w.setProps({ hints: [hint] })
+    expect(w.find(".editor-hint li").text()).toBe(hint)
+  })
+
+  it("gives way to a parse error: the error is what needs fixing", async () => {
+    const w = mountEditor()
+    await w.setProps({ hints: [hint], error: "boom" })
+    expect(w.find(".editor-hint").exists()).toBe(false)
+    expect(w.find(".editor-error").exists()).toBe(true)
+  })
+})

@@ -4,7 +4,10 @@ import type { HighlighterCore } from "shiki/core"
 import { getCompletions, type CompletionContext } from "./completion"
 import { fitPopup } from "./popupFit"
 
-const props = defineProps<{ modelValue: string; error: string | null }>()
+const props = withDefaults(
+  defineProps<{ modelValue: string; error: string | null; hints?: string[] }>(),
+  { hints: () => [] },
+)
 const emit = defineEmits<{ "update:modelValue": [value: string] }>()
 
 const textarea = ref<HTMLTextAreaElement>()
@@ -227,6 +230,12 @@ function syncScroll() {
     <div v-if="error" class="editor-error" role="alert">
       <span class="font-semibold">Can’t parse:</span> {{ error }}
     </div>
+    <div v-else-if="hints.length" class="editor-hint" role="status">
+      <span class="font-semibold">Too long for one line:</span>
+      <ul>
+        <li v-for="hint in hints" :key="hint">{{ hint }}</li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -331,6 +340,22 @@ function syncScroll() {
 .completion .detail {
   font-size: 0.68rem;
   color: color-mix(in oklch, var(--color-base-content) 55%, transparent);
+}
+/* Advice, not an error: the plan still renders, so no alarm colour, just a
+   warning rule on the edge. Scrolls past a few hints so the editor keeps its room. */
+.editor-hint {
+  max-height: 6.5rem;
+  overflow-y: auto;
+  padding: 0.5rem 1rem;
+  font-size: 0.74rem;
+  background: var(--color-base-200);
+  color: var(--color-base-content);
+  border-top: 2px solid var(--color-ink-warning);
+}
+.editor-hint ul {
+  margin: 0.2rem 0 0;
+  padding-left: 1rem;
+  list-style: disc;
 }
 .editor-error {
   padding: 0.6rem 1rem;

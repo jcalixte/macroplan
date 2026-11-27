@@ -233,6 +233,10 @@ off-track one with a Countermeasure is at-risk, so both are rejected. A
 Problem and Countermeasure are ignored, so recording a delivery never forces a
 cleanup.
 
+Keep `problem`, `countermeasure` and `learning` to one line: 80 characters or
+fewer, the way an A3 states them. Longer text is still valid; the editor flags
+it as a hint, not an error, and the plan renders.
+
 ## Render semantics (the contract a renderer must honor)
 
 Two tools should draw the same plan from the same file. These rules are as much
@@ -306,6 +310,9 @@ a part of the format as the fields:
     shows its Status word ("in flight" when absent). An at-risk or off-track
     feature then reads `problem → countermeasure`; with no Countermeasure
     (always the case off-track) it shows the problem alone, without the arrow.
+    Each text gets at most two lines in a column of bounded width, so one long
+    sentence never widens the grid; the full text opens in a popover from the
+    cell, by pointer, keyboard or touch.
 
 ## Notes for implementers
 
