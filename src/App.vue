@@ -11,6 +11,7 @@ import CommandPalette, { type Command } from "./components/CommandPalette.vue"
 import FeatureSheet from "./components/FeatureSheet.vue"
 import { featureFacts } from "./model/facts"
 import { useMedia, NARROW, TOUCH } from "./composables/useMedia"
+import { useTheme } from "./composables/useTheme"
 import { matches, isTypingTarget, chordKeys, ariaChord, type Chord } from "./composables/shortcuts"
 
 const {
@@ -150,6 +151,9 @@ const parentNames = computed(() =>
   (plan.value?.rows ?? []).filter((r) => r.childCount > 0).map((r) => r.name),
 )
 
+const { theme, choice: themeChoice, choose: chooseTheme, toggle: toggleTheme } = useTheme()
+const otherTheme = computed(() => (theme.value === "dark" ? "light" : "dark"))
+
 const commands = computed<Command[]>(() => {
   const list: Command[] = (
     [
@@ -201,6 +205,22 @@ const commands = computed<Command[]>(() => {
         run: () => setExpanded([]),
       },
     )
+  }
+
+  list.push({
+    id: "theme-toggle",
+    group: "View",
+    label: `Switch to the ${otherTheme.value} theme`,
+    chord: { key: "t" },
+    run: toggleTheme,
+  })
+  if (themeChoice.value) {
+    list.push({
+      id: "theme-system",
+      group: "View",
+      label: "Follow the system theme",
+      run: () => chooseTheme(null),
+    })
   }
 
   list.push({ id: "new", group: "Plan", label: "New plan", chord: { key: "n" }, run: newPlan })
@@ -376,6 +396,26 @@ const paletteAria = `${ariaChord(PALETTE)} ${ariaChord(PALETTE_FALLBACK)}`
           Macroplan
         </button>
       </div>
+      <button
+        class="btn btn-ghost btn-sm btn-square"
+        :aria-label="`Switch to the ${otherTheme} theme`"
+        aria-keyshortcuts="T"
+        :title="`Switch to the ${otherTheme} theme`"
+        @click="toggleTheme"
+      >
+        <!-- The icon shows where the button goes: a moon on light, a sun on dark. -->
+        <svg v-if="theme === 'light'" class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"
+          />
+        </svg>
+        <svg v-else class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+          <path
+            d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"
+          />
+        </svg>
+      </button>
       <button
         class="btn btn-ghost btn-sm palette-trigger max-sm:btn-square"
         :aria-keyshortcuts="`${paletteAria} ?`"
