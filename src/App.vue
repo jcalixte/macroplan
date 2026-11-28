@@ -12,6 +12,7 @@ import FeatureSheet from "./components/FeatureSheet.vue"
 import { featureFacts } from "./model/facts"
 import { useMedia, NARROW, TOUCH } from "./composables/useMedia"
 import { useTheme } from "./composables/useTheme"
+import { useSplitPane } from "./composables/useSplitPane"
 import { matches, isTypingTarget, chordKeys, ariaChord, type Chord } from "./composables/shortcuts"
 
 const {
@@ -59,6 +60,10 @@ watchEffect(() => {
 const showSource = computed(() => mode.value !== "macroplan")
 const showMacroplan = computed(() => mode.value !== "source")
 const editMode = () => (narrow.value ? "source" : "split")
+
+const mainEl = ref<HTMLElement>()
+const sourcePane = ref<HTMLElement>()
+const split = useSplitPane(mainEl, sourcePane)
 
 // The Feature whose details are open, by name. Cleared on a plan switch, and
 // the sheet closes by itself if an edit removes the Feature.
@@ -434,13 +439,14 @@ const paletteAria = `${ariaChord(PALETTE)} ${ariaChord(PALETTE_FALLBACK)}`
       </button>
     </header>
 
-    <main class="flex min-h-0 flex-1 flex-col md:flex-row">
+    <main ref="mainEl" class="flex min-h-0 flex-1 flex-col md:flex-row">
       <section
         v-if="showSource"
+        id="source-pane"
+        ref="sourcePane"
         class="flex min-h-0 flex-col border-base-300"
-        :class="
-          showMacroplan ? 'max-md:h-2/5 max-md:border-b md:w-1/3 md:max-w-md md:border-r' : 'flex-1'
-        "
+        :class="showMacroplan ? 'source-split max-md:h-2/5 max-md:border-b' : 'flex-1'"
+        :style="showMacroplan ? split.style.value : undefined"
       >
         <div class="pane-bar">
           <span class="pane-label">Source (TOML)</span>
@@ -454,6 +460,24 @@ const paletteAria = `${ariaChord(PALETTE)} ${ariaChord(PALETTE_FALLBACK)}`
           class="min-h-0 flex-1"
         />
       </section>
+
+      <div
+        v-if="showSource && showMacroplan"
+        class="splitter max-md:hidden"
+        :class="{ dragging: split.dragging.value }"
+        role="separator"
+        tabindex="0"
+        aria-orientation="vertical"
+        aria-controls="source-pane"
+        aria-label="Resize the source pane"
+        :aria-valuenow="split.percent.value"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        title="Drag to resize · double-click to reset"
+        @pointerdown="split.startDrag"
+        @dblclick="split.reset"
+        @keydown="split.onKey"
+      ></div>
 
       <section v-if="showMacroplan" class="flex min-h-0 min-w-0 flex-1 flex-col">
         <div class="pane-bar">
@@ -582,6 +606,65 @@ const paletteAria = `${ariaChord(PALETTE)} ${ariaChord(PALETTE_FALLBACK)}`
 </template>
 
 <style scoped>
+/* Split view: wide enough for a commented TOML line (~88 columns of the
+   0.8rem editor monospace) at desktop sizes, never crowding out the Macroplan.
+   A width dragged on the splitter overrides the default through --source-w;
+   min/max keep it in bounds as the window resizes. Values match useSplitPane. */
+@media (min-width: 48rem) {
+  .source-split {
+    flex: none;
+    width: var(--source-w, clamp(22rem, 45%, 46rem));
+    min-width: min(20rem, 50%);
+    max-width: max(20rem, calc(100% - 24rem));
+  }
+}
+/* The visible rule is the pane border: 1px, widening to the accent on hover,
+   focus or drag. The hit area is wider than it looks, and wider still for a
+   finger. */
+.splitter {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 1px;
+  margin-inline: -0.375rem;
+  padding-inline: 0.375rem;
+  box-sizing: content-box;
+  background: var(--color-base-300);
+  background-clip: content-box;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+@media (pointer: coarse) {
+  .splitter {
+    margin-inline: -0.75rem;
+    padding-inline: 0.75rem;
+  }
+}
+.splitter::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 3px;
+  translate: -50% 0;
+  background: var(--color-primary);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.splitter:hover::after,
+.splitter.dragging::after {
+  opacity: 1;
+}
+.splitter:focus-visible::after {
+  opacity: 1;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.splitter.dragging {
+  transition: none;
+}
 /* Both panes open on the same 2.5rem bar, so their content starts on one line. */
 .pane-bar {
   display: flex;

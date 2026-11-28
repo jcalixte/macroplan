@@ -117,8 +117,10 @@ function onDialogClick(e: MouseEvent) {
       <section class="block">
         <h4>Timeline</h4>
         <ol class="timeline" :class="TONE_TEXT[rowTone(row)]">
-          <li v-for="(t, i) in steps" :key="t.key" :class="{ 'leg-dashed': steps[i + 1]?.slip }">
-            <span v-if="t.gap > 0" class="gap">+{{ t.gap }} wk</span>
+          <li v-for="(t, i) in steps" :key="t.key" :class="{ 'leg-dashed': t.slip }">
+            <div v-if="i > 0" class="leg" :style="{ '--weeks': t.gap }">
+              <span v-if="t.gap > 0" class="gap">+{{ t.gap }} wk</span>
+            </div>
             <span v-if="t.kind === 'start'" class="glyph cap" aria-hidden="true"></span>
             <span v-else class="glyph" :class="MARKER_CLASS[t.kind]" aria-hidden="true">
               <svg v-if="t.slip" class="tri-dash" viewBox="0 0 12 12">
@@ -323,21 +325,36 @@ h4 {
 .timeline {
   --rail: color-mix(in oklab, currentColor 55%, var(--color-base-100));
 }
+/* Each step after the first opens with its leg: a row of its own, grown with
+   the weeks it spans (capped so a long slip cannot push the sheet off screen),
+   that holds the "+N wk" label clear of the step names. The rule runs from the
+   centre of the step above to the centre of this one. */
 .timeline li {
-  min-height: 2.5rem;
+  --step: 2rem;
+  min-height: 0;
+  grid-auto-rows: var(--step);
 }
-/* The leg to the next step: centre of this glyph to centre of the next. Each
-   glyph wears a halo of the surface, so the rule reads as passing behind it. */
-.timeline li:not(:last-child)::after {
+.timeline li:has(.leg) {
+  grid-template-rows: auto;
+}
+.timeline .leg {
+  position: relative;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  height: clamp(1.25rem, 0.75rem + var(--weeks) * 0.1875rem, 3.75rem);
+}
+.timeline .leg::before {
   content: "";
   position: absolute;
   left: calc(0.75rem - 1px);
-  top: 50%;
-  height: 100%;
+  top: calc(var(--step) / -2);
+  bottom: calc(var(--step) / -2);
   width: 2px;
   background: var(--rail);
 }
-.timeline li.leg-dashed::after {
+.timeline li.leg-dashed .leg::before {
   background: repeating-linear-gradient(to bottom, var(--rail) 0 4px, transparent 4px 7px);
 }
 .timeline .glyph {
@@ -360,13 +377,10 @@ h4 {
   border-radius: 0;
   background: var(--rail);
 }
-/* Weeks since the step above, set on the leg it measures. */
+/* Weeks since the step above, set beside the leg it measures. */
 .timeline .gap {
-  position: absolute;
-  top: 0;
-  left: 2rem;
-  translate: 0 -50%;
-  font-size: 0.6875rem;
+  grid-column: 2;
+  font-size: 0.75rem;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   color: var(--color-ink-muted);

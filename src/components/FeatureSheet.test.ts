@@ -78,8 +78,8 @@ original = 2026-06-08
       "Original estimate",
       "Forecast",
     ])
-    expect(lis[1].classes()).toContain("leg-dashed")
-    expect(lis[0].classes()).not.toContain("leg-dashed")
+    expect(lis[2].classes()).toContain("leg-dashed")
+    expect(lis[1].classes()).not.toContain("leg-dashed")
     expect(lis[2].find("svg.tri-dash").exists()).toBe(true)
     expect(lis[2].find(".gap").text()).toBe("+24 wk")
   })
