@@ -36,6 +36,11 @@ const {
 const { busy, toast, holdToast, releaseToast, copyPng, downloadPng, sharePng } = usePngExport()
 
 const exportRoot = ref<HTMLElement>()
+// A trailing newline closes the last line rather than opening an empty one.
+const lineCount = computed(() => {
+  const text = source.value.replace(/\n$/, "")
+  return text === "" ? 0 : text.split("\n").length
+})
 const editor = ref<InstanceType<typeof PlanEditor>>()
 const paletteOpen = ref(false)
 
@@ -450,6 +455,8 @@ const paletteAria = `${ariaChord(PALETTE)} ${ariaChord(PALETTE_FALLBACK)}`
       >
         <div class="pane-bar">
           <span class="pane-label">Source (TOML)</span>
+          <span class="flex-1"></span>
+          <span class="line-count">{{ lineCount }} {{ lineCount === 1 ? "line" : "lines" }}</span>
         </div>
         <PlanEditor
           ref="editor"
@@ -678,6 +685,11 @@ const paletteAria = `${ariaChord(PALETTE)} ${ariaChord(PALETTE_FALLBACK)}`
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+.line-count {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
   color: var(--color-ink-muted);
 }
 .stale {
